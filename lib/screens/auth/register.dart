@@ -95,19 +95,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // --- 1. Logo ---
-                  Image.asset(
-                    'lib/assets/plancito_rec-removebg-preview.png',
-                    height: 150,
-                  ),
+                  Image.asset('lib/assets/icon_logo_clear.png', height: 150),
                   const SizedBox(height: 16.0),
-                  Icon(
-                    Icons
-                        .person_add_alt_1_outlined, // Ícono diferente para registro
-                    size: 50,
-                    color: kPrimaryColor,
-                  ),
-                  const SizedBox(height: 32.0),
-
                   // --- 2. Campo de Nombre Completo ---
                   TextFormField(
                     controller: _nameController,
