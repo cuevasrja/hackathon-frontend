@@ -35,7 +35,8 @@ migrate_working_dir/
 
 # Build outputs
 /build/*
-!/build/web
+# Do not ignore the web build outputs
+!/build/web/*
 
 # Symbolication related
 app.*.symbols
