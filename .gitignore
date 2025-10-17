@@ -31,6 +31,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+/build/
 
 # Build outputs
 /build/*
@@ -46,3 +47,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+.env
+android/build/reports/problems/problems-report.html
+
+# Flutter generated plugin registrants and generated plugin cmake files
+# Windows
+windows/flutter/generated_plugin_registrant.cc
+windows/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugins.cmake
+# Linux
+linux/flutter/generated_plugin_registrant.cc
+linux/flutter/generated_plugin_registrant.h
+linux/flutter/generated_plugins.cmake
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+# iOS
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+# Android
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# Flutter generated plugin registrants and gen
