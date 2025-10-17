@@ -198,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                         },
                         child: const Text(
-                          'Crear una',
+                          'Crear',
                           style: TextStyle(
                             color: kPrimaryColor,
                             fontWeight: FontWeight.bold,
