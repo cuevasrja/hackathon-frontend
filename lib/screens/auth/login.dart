@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'register.dart';
+import 'forgot_password.dart';
 
 // Definimos tus colores principales para usarlos fácilmente
 const Color kPrimaryColor = Color(0xFF4BBAC3);
@@ -143,8 +144,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        // TODO: Lógica para recuperar contraseña
-                        print('Botón "Olvidé contraseña" presionado');
+                        // Navegamos a la pantalla de recuperar contraseña
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
                       },
                       child: const Text(
                         '¿Olvidaste tu contraseña?',
