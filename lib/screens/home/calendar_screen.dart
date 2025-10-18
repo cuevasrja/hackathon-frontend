@@ -38,6 +38,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     try {
       final events = await _eventService.fetchJoinedEvents();
+      developer.log('Fetched ${events.length} events', name: 'CalendarScreen');
 
       final eventMap = LinkedHashMap<DateTime, List<Event>>(
         equals: isSameDay,
@@ -46,7 +47,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       for (final event in events) {
         final startDate = event.event.timeBegin;
-        final endDate = event.event.timeEnd.isBefore(startDate) ? startDate : event.event.timeEnd;
+        final endDate =
+            event.event.timeEnd.isBefore(startDate) ? startDate : event.event.timeEnd;
 
         var day = startDate;
         while (day.isBefore(endDate) || isSameDay(day, endDate)) {
@@ -65,7 +67,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       });
     } catch (e) {
       developer.log('Error fetching events: $e', name: 'CalendarScreen');
-
       setState(() {
         _error = "Error al cargar eventos. Inténtalo de nuevo más tarde.";
         _isLoading = false;
@@ -76,7 +77,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   List<Event> _getEventsForDay(DateTime day) {
     final events = _events[day] ?? [];
     if (events.isNotEmpty) {
-      developer.log('Events for $day: ${events.length}', name: 'CalendarScreen');
+      developer.log('Eventos para el $day: ${events.length}', name: 'CalendarScreen');
     }
     return events;
   }
@@ -105,7 +106,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'Events for ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
+                'Eventos para el ${_selectedDay!.day}/${_selectedDay!.month}/${_selectedDay!.year}',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
             ),
@@ -130,7 +131,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'),
+        title: const Text('Calendario de Eventos'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -159,41 +160,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   calendarBuilders: CalendarBuilders(
                     markerBuilder: (context, day, events) {
                       if (events.isNotEmpty) {
-                        return Positioned(
-                          right: 1,
-                          bottom: 1,
+                        return Align(
+                          alignment: Alignment.bottomCenter,
                           child: _buildEventsMarker(events),
                         );
                       }
                       return null;
                     },
                   ),
+                  availableCalendarFormats: const {
+                    CalendarFormat.month: 'Mes',
+                    CalendarFormat.twoWeeks: '2 Semanas',
+                    CalendarFormat.week: 'Semana',
+                  },
                 ),
     );
   }
 
   Widget _buildEventsMarker(List<dynamic> events) {
-    final colors = [
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.pink
-    ];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: events.take(4).map((event) {
-        return Container(
-          width: 7,
-          height: 7,
-          margin: const EdgeInsets.symmetric(horizontal: 1.5),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors[(event.id as int) % colors.length],
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.blue[400],
+      ),
+      width: 16,
+      height: 16,
+      child: Center(
+        child: Text(
+          '${events.length}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
           ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 }
