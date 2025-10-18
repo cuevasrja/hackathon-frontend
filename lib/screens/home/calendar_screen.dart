@@ -41,6 +41,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         onPageChanged: (focusedDay) {
           _focusedDay = focusedDay;
         },
+        rowHeight: MediaQuery.of(context).size.height / 8,
+        daysOfWeekHeight: MediaQuery.of(context).size.height / 18,
       ),
     );
   }
