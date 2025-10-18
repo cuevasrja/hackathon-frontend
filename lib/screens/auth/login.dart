@@ -18,6 +18,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   static const _userIdKey = 'userId';
+  static const _tokenKey = 'authToken';
   // Clave para manejar el estado del formulario
   final _formKey = GlobalKey<FormState>();
 
@@ -70,6 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_userIdKey, authResponse.user.id);
+      await prefs.setString(_tokenKey, authResponse.token);
 
       if (!mounted) return;
 

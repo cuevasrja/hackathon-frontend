@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart';
-//import 'package:hackathon_frontend/screens/home_screen.dart';
+import 'package:hackathon_frontend/screens/home/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +27,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF4BBAC3)),
       ),
 
-      home: const LoginScreen(),
+      home: const HomeScreen(),
     );
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hackathon_frontend/services/profile_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login.dart'; // Importamos para usar las constantes de color
 
 class ProfileScreen extends StatefulWidget {
@@ -9,11 +11,79 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const _userIdKey = 'userId';
   // Datos de usuario de ejemplo (en un app real vendrían de un estado o API)
   String _userName = 'John Doe';
   String _userEmail = 'john.doe@example.com';
   String _profileImageUrl =
       'https://via.placeholder.com/150/4BBAC3/FFFFFF?text=JD'; // Placeholder
+  String _userMembership = '';
+  String _userRole = '';
+  late ProfileService _profileService;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileService = ProfileService();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt(_userIdKey);
+      if (userId == null) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _errorMessage = 'No se encontró el usuario autenticado.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final user = await _profileService.fetchUser(userId);
+
+      if (!mounted) {
+        return;
+      }
+
+      final fullName = '${user.name} ${user.lastName}'.trim();
+
+      setState(() {
+        _userName = fullName.isNotEmpty ? fullName : user.email;
+        _userEmail = user.email;
+        _profileImageUrl = '';
+        _userMembership = user.membership;
+        _userRole = user.role;
+        _isLoading = false;
+      });
+    } on ProfileException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = e.message;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = 'Error inesperado al cargar la información del perfil.';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +107,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         //   ),
         // ],
       ),
-      body: Column(
-        children: [
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? _buildErrorContent()
+              : Column(
+                  children: [
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
@@ -56,7 +130,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         CircleAvatar(
                           radius: 100,
                           backgroundColor: kPrimaryColor.withOpacity(0.2),
-                          backgroundImage: NetworkImage(_profileImageUrl),
+                          backgroundImage: _profileImageUrl.isNotEmpty
+                              ? NetworkImage(_profileImageUrl)
+                              : null,
                           child: _profileImageUrl.isEmpty
                               ? Icon(
                                   Icons.person,
@@ -99,6 +175,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _userEmail,
                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
+                  if (_userMembership.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Membresía: $_userMembership',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  if (_userRole.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'Rol: $_userRole',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 32.0),
 
                   // --- 4. Botón de Editar Perfil ---
@@ -198,6 +297,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+                ),
+    );
+  }
+
+  Widget _buildErrorContent() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _errorMessage ?? 'Error al cargar el perfil.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: _loadProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -238,8 +367,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // Lógica de cerrar sesión simple
-  void _logout(BuildContext context) {
+  Future<void> _logout(BuildContext context) async {
     // En un app real, aquí borrarías tokens, datos de usuario, etc.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userIdKey);
     print('Cerrando sesión...');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
