@@ -4,6 +4,7 @@ import 'package:hackathon_frontend/services/products_service.dart';
 
 import '../auth/login.dart'; // Para los colores
 //import 'create_event_screen.dart'; // Descomentar cuando la tengas
+import 'products/create_products.dart';
 
 // Modelos de datos (pueden vivir en sus propios archivos)
 class BusinessPlan {
@@ -190,6 +191,30 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
     }
   }
 
+  bool _isValidHttpUrl(String? url) {
+    if (url == null || url.isEmpty) {
+      return false;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return false;
+    }
+    final scheme = uri.scheme.toLowerCase();
+    return (scheme == 'http' || scheme == 'https') && uri.host.isNotEmpty;
+  }
+
+  Future<void> _openCreateProduct() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => CreateProductScreen(placeId: widget.place.id),
+      ),
+    );
+
+    if (created == true) {
+      await _loadProducts();
+    }
+  }
+
   Widget _buildHeader() {
     return Center(
       child: Column(
@@ -253,19 +278,47 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Productos destacados',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            IconButton(
-              onPressed: _isLoadingProducts ? null : _loadProducts,
-              icon: Icon(
-                Icons.refresh,
-                color: _isLoadingProducts ? Colors.grey : kPrimaryColor,
+            const Expanded(
+              child: Text(
+                'Productos destacados',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              tooltip: 'Recargar productos',
+            ),
+            Flexible(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    IconButton(
+                      onPressed: _isLoadingProducts ? null : _loadProducts,
+                      icon: Icon(
+                        Icons.refresh,
+                        color:
+                            _isLoadingProducts ? Colors.grey : kPrimaryColor,
+                      ),
+                      tooltip: 'Recargar productos',
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _isLoadingProducts ? null : _openCreateProduct,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Nuevo producto'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kPrimaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -292,6 +345,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
   }
 
   Widget _buildProductCard(ProductSummary product) {
+    final hasValidImage = _isValidHttpUrl(product.image);
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -303,7 +357,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: product.image != null && product.image!.isNotEmpty
+              child: hasValidImage
                   ? Image.network(
                       product.image!,
                       width: 72,
@@ -331,6 +385,8 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -340,6 +396,8 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                       fontWeight: FontWeight.bold,
                       color: kPrimaryColor,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (product.promotions.isNotEmpty) ...[
                     const SizedBox(height: 8),
