@@ -14,6 +14,7 @@ class Event {
   final int? communityId;
   final int minAge;
   final String status;
+  final String visibility;
   final DateTime createdAt;
   final String? externalUrl;
   final Place? place;
@@ -32,6 +33,7 @@ class Event {
     this.communityId,
     required this.minAge,
     required this.status,
+    required this.visibility,
     required this.createdAt,
     this.externalUrl,
     this.place,
@@ -52,6 +54,7 @@ class Event {
       communityId: json['communityId'] as int?,
       minAge: json['minAge'] as int,
       status: json['status'] as String,
+      visibility: json['visibility'] as String? ?? 'PRIVATE',
       createdAt: DateTime.parse(json['createdAt'] as String),
       externalUrl: json['externalUrl'] as String?,
       place: Place.fromJson(json['place'] as Map<String, dynamic>),

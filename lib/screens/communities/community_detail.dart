@@ -1,5 +1,11 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
+import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
+import 'package:hackathon_frontend/services/event_service.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 const Color kPrimaryColor = Color(0xFF4BBAC3);
 const Color kBackgroundColor = Color(0xFFF5F4EF);
@@ -16,17 +22,26 @@ class CommunityDetailsScreen extends StatefulWidget {
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     with SingleTickerProviderStateMixin {
   late CommunitiesService _communitiesService;
+  late EventService _eventService;
   CommunityDetail? _community;
   bool _isLoading = true;
   String? _errorMessage;
   late TabController _tabController;
+  List<Event> _communityEvents = [];
+  bool _isEventsLoading = false;
+  String? _eventsErrorMessage;
+  String _selectedStatus = '';
+  String _selectedVisibility = '';
+  bool _upcomingOnly = false;
 
   @override
   void initState() {
     super.initState();
     _communitiesService = CommunitiesService();
+    _eventService = EventService();
     _tabController = TabController(length: 3, vsync: this);
     _fetchCommunity();
+    _initializeLocaleAndLoadEvents();
   }
 
   Future<void> _fetchCommunity() async {
@@ -36,8 +51,9 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     });
 
     try {
-      final community =
-          await _communitiesService.fetchCommunityDetail(widget.communityId);
+      final community = await _communitiesService.fetchCommunityDetail(
+        widget.communityId,
+      );
       if (!mounted) {
         return;
       }
@@ -64,6 +80,80 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     }
   }
 
+  Future<void> _initializeLocaleAndLoadEvents() async {
+    try {
+      await initializeDateFormatting('es');
+    } catch (_) {
+      developer.log(
+        'initializeDateFormatting fallo, se continuará con configuración por defecto',
+        name: 'CommunityDetailsScreen',
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await _loadCommunityEvents();
+  }
+
+  Future<void> _loadCommunityEvents() async {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isEventsLoading = true;
+      _eventsErrorMessage = null;
+    });
+
+    try {
+      final response = await _eventService.fetchCommunityEvents(
+        widget.communityId,
+        status: _selectedStatus.isNotEmpty ? _selectedStatus : null,
+        visibility: _selectedVisibility.isNotEmpty ? _selectedVisibility : null,
+        upcomingOnly: _upcomingOnly ? true : null,
+        page: 1,
+        limit: 20,
+      );
+      developer.log(
+        'fetchCommunityEvents <- eventos: ${response.events.length}, pagina: ${response.page}, total: ${response.total}',
+        name: 'CommunityDetailsScreen',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _communityEvents = response.events;
+        _isEventsLoading = false;
+      });
+    } on EventException catch (e) {
+      developer.log(
+        'fetchCommunityEvents error <- ${e.message}',
+        name: 'CommunityDetailsScreen',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _eventsErrorMessage = e.message;
+        _isEventsLoading = false;
+      });
+    } catch (_) {
+      developer.log(
+        'fetchCommunityEvents error inesperado',
+        name: 'CommunityDetailsScreen',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _eventsErrorMessage =
+            'No fue posible cargar los eventos de la comunidad.';
+        _isEventsLoading = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -77,8 +167,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? _buildErrorState()
-              : _buildContent(),
+          ? _buildErrorState()
+          : _buildContent(),
     );
   }
 
@@ -150,12 +240,10 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                 ),
                 background: Hero(
                   tag: 'community-${community.id}',
-                  child: community.imageUrl != null &&
+                  child:
+                      community.imageUrl != null &&
                           community.imageUrl!.isNotEmpty
-                      ? Image.network(
-                          community.imageUrl!,
-                          fit: BoxFit.cover,
-                        )
+                      ? Image.network(community.imageUrl!, fit: BoxFit.cover)
                       : Container(
                           color: kPrimaryColor,
                           child: const Icon(
@@ -189,7 +277,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _buildEventsTab(community),
+            _buildEventsTab(),
             _buildMembersTab(community),
             _buildChatPlaceholder(),
           ],
@@ -270,69 +358,230 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     );
   }
 
-  Widget _buildEventsTab(CommunityDetail community) {
-    final events = community.events;
-    if (events == null || events.isEmpty) {
-      return const Center(
-        child: Text('No hay eventos creados en esta comunidad.'),
+  Widget _buildEventsTab() {
+    return Column(
+      children: [
+        _buildEventFilters(),
+        Expanded(
+          child: RefreshIndicator(
+            color: kPrimaryColor,
+            onRefresh: _loadCommunityEvents,
+            child: _buildEventsList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventFilters() {
+    final statusItems = const [
+      DropdownMenuItem(value: '', child: Text('Todos los estados')),
+      DropdownMenuItem(value: 'ACTIVE', child: Text('Activos')),
+      DropdownMenuItem(value: 'CANCELLED', child: Text('Cancelados')),
+      DropdownMenuItem(value: 'FINISHED', child: Text('Finalizados')),
+    ];
+
+    final visibilityItems = const [
+      DropdownMenuItem(value: '', child: Text('Todas las visibilidades')),
+      DropdownMenuItem(value: 'PUBLIC', child: Text('Públicos')),
+      DropdownMenuItem(value: 'PRIVATE', child: Text('Privados')),
+    ];
+
+    return Container(
+      width: double.infinity,
+      color: kBackgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Estado',
+                    border: OutlineInputBorder(),
+                  ),
+                  isExpanded: true,
+                  items: statusItems,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedStatus = value ?? '';
+                    });
+                    _loadCommunityEvents();
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedVisibility,
+                  decoration: const InputDecoration(
+                    labelText: 'Visibilidad',
+                    border: OutlineInputBorder(),
+                  ),
+                  isExpanded: true,
+                  items: visibilityItems,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedVisibility = value ?? '';
+                    });
+                    _loadCommunityEvents();
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Solo próximos eventos'),
+            value: _upcomingOnly,
+            activeColor: kPrimaryColor,
+            onChanged: (value) {
+              setState(() {
+                _upcomingOnly = value;
+              });
+              _loadCommunityEvents();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventsList() {
+    if (_isEventsLoading) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      );
+    }
+
+    if (_eventsErrorMessage != null) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            _eventsErrorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadCommunityEvents,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reintentar'),
+          ),
+        ],
+      );
+    }
+
+    if (_communityEvents.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SizedBox(
+            height: 200,
+            child: Center(
+              child: Text(
+                'No hay eventos que coincidan con los filtros seleccionados.',
+              ),
+            ),
+          ),
+        ],
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
-      itemCount: events.length,
+      itemCount: _communityEvents.length,
       itemBuilder: (context, index) {
-        final event = events[index] as Map<String, dynamic>?;
-        if (event == null) {
-          return const SizedBox.shrink();
-        }
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        final event = _communityEvents[index];
+        return _buildCommunityEventCard(event);
+      },
+    );
+  }
+
+  Widget _buildCommunityEventCard(Event event) {
+    final formatter = DateFormat('EEE d MMM · HH:mm', 'es');
+    final dateLabel = formatter.format(event.timeBegin);
+    final placeName = event.place?.name ?? 'Ubicación por definir';
+    final secondaryPlace = event.place?.direction ?? event.externalUrl;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              event.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              event.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            Row(
               children: [
-                Text(
-                  event['title'] as String? ?? 'Evento sin título',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                const Icon(Icons.calendar_today, size: 16),
+                const SizedBox(width: 8),
+                Text(dateLabel),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    secondaryPlace?.isNotEmpty == true
+                        ? '$placeName · $secondaryPlace'
+                        : placeName,
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (event['description'] != null)
-                  Text(
-                    event['description'] as String,
-                    style: const TextStyle(color: Colors.black54),
-                  ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 16),
-                    const SizedBox(width: 8),
-                    Text(event['date']?.toString() ?? 'Fecha por definir'),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        event['location']?.toString() ?? 'Ubicación por definir',
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  label: Text(event.status),
+                  backgroundColor: kPrimaryColor.withOpacity(0.15),
+                  labelStyle: const TextStyle(color: kPrimaryColor),
+                ),
+                Chip(
+                  label: Text(event.visibility),
+                  backgroundColor: Colors.grey.shade200,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -389,7 +638,11 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _tabBar.preferredSize.height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(color: kBackgroundColor, child: _tabBar);
   }
 
