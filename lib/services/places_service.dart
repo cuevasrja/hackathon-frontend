@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PlacesService {
   PlacesService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
 
   Future<PlacesResponse> fetchPlaces({
     String? city,

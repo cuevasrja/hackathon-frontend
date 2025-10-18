@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class EventService {
   EventService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
 
   Future<EventResponse> fetchEvents({int page = 1, int limit = 10}) async {
     final baseUrl = _baseUrl.trim();

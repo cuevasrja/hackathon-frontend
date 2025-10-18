@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
@@ -6,7 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  try{
+    if (kIsWeb) {
+      await dotenv.load();
+    } else {
+      await dotenv.load(fileName: '.env');
+    }
+  } catch(e){
+    debugPrint('Error loading .env file: $e');
+  }
   runApp(const MyApp());
 }
 
