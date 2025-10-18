@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:http/http.dart' as http;
@@ -8,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class EventService {
   EventService();
 
-  String get _baseUrl => "https://hackathon-back-theta.vercel.app";
+  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
 
   Future<EventResponse> fetchEvents({int page = 1, int limit = 10}) async {
     final baseUrl = _baseUrl.trim();
