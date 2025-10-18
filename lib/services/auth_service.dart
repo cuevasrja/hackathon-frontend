@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:developer' as developer;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 
 class AuthService {
   AuthService();
@@ -12,14 +15,19 @@ class AuthService {
     required String password,
   }) async {
     final baseUrl = _baseUrl.trim();
+    developer.log('[AuthService] baseUrl: ' + baseUrl);
     if (baseUrl.isEmpty) {
       throw AuthException('API_BASE_URL no está configurado');
     }
 
     final uri = Uri.parse('$baseUrl/api/auth/login');
+    developer.log('[AuthService] uri: ' + uri.toString());
 
     http.Response response;
     try {
+      developer.log('[AuthService] Enviando POST a: ' + uri.toString());
+      developer.log('[AuthService] Headers: ' + jsonEncode({'Content-Type': 'application/json'}));
+      developer.log('[AuthService] Body: ' + jsonEncode({'email': email, 'password': password}));
       response = await http
           .post(
             uri,
@@ -27,7 +35,11 @@ class AuthService {
             body: jsonEncode({'email': email, 'password': password}),
           )
           .timeout(const Duration(seconds: 15));
-    } on Exception {
+      developer.log('[AuthService] Response status: ' + response.statusCode.toString());
+      developer.log('[AuthService] Response body: ' + response.body);
+    } on Exception catch (e, st) {
+      developer.log('[AuthService] Exception: ' + e.toString(),
+          error: e, stackTrace: st);
       throw AuthException('No fue posible conectar con el servidor');
     }
 
@@ -59,40 +71,81 @@ class AuthService {
     required String gender,
     required String city,
     required String country,
+    File? documentFrontImage,
   }) async {
     final baseUrl = _baseUrl.trim();
+    developer.log('[AuthService] signup baseUrl: ' + baseUrl);
     if (baseUrl.isEmpty) {
       throw AuthException('API_BASE_URL no está configurado');
     }
 
     final uri = Uri.parse('$baseUrl/api/auth/signup');
+    developer.log('[AuthService] signup uri: ' + uri.toString());
 
     http.Response response;
     try {
+      if (documentFrontImage == null) {
+        developer.log('[AuthService] signup: documento frontal no proporcionado');
+        throw AuthException('Debes adjuntar una imagen del documento');
+      }
+
+      final documentFile = documentFrontImage;
+      late final String documentFrontImageBase64;
+      developer.log('[AuthService] signup: procesando documento local en ' + documentFile.path);
+      try {
+        final rawBytes = await documentFile.readAsBytes();
+        developer.log('[AuthService] signup raw bytes length: ' + rawBytes.length.toString());
+        final decoded = img.decodeImage(rawBytes);
+        final processedBytes = decoded != null
+            ? img.encodeJpg(decoded, quality: 90)
+            : rawBytes;
+        developer.log('[AuthService] signup processed bytes length: ' + processedBytes.length.toString());
+        documentFrontImageBase64 = base64Encode(processedBytes);
+        developer.log('[AuthService] signup base64 length: ' + documentFrontImageBase64.length.toString());
+      } on Exception catch (e, st) {
+        developer.log('[AuthService] signup procesando imagen falló, se enviará archivo original en base64: ' + e.toString(),
+            error: e, stackTrace: st);
+        final fallbackBytes = await documentFile.readAsBytes();
+        documentFrontImageBase64 = base64Encode(fallbackBytes);
+      }
+
+      final payload = <String, dynamic>{
+        'name': name,
+        'lastName': lastName,
+        'email': email,
+        'password': password,
+        'birthDate': birthDate,
+        'gender': gender,
+        'city': city,
+        'country': country,
+        'documentFrontImage': documentFrontImageBase64,
+        'image': documentFrontImageBase64,
+      };
+
+      developer.log('[AuthService] signup payload keys: ' + payload.keys.join(', '));
       response = await http
           .post(
             uri,
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'name': name,
-              'lastName': lastName,
-              'email': email,
-              'password': password,
-              'birthDate': birthDate,
-              'gender': gender,
-              'city': city,
-              'country': country,
-            }),
+            body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 15));
-    } on Exception {
+          .timeout(const Duration(seconds: 30));
+      developer.log('[AuthService] signup response status: ' + response.statusCode.toString());
+      developer.log('[AuthService] signup response body: ' + response.body);
+    } on AuthException {
+      rethrow;
+    } on Exception catch (e, st) {
+      developer.log('[AuthService] signup Exception: ' + e.toString(), error: e, stackTrace: st);
       throw AuthException('No fue posible conectar con el servidor');
     }
 
+    developer.log('[AuthService] signup final status: ' + response.statusCode.toString());
+    developer.log('[AuthService] signup final body: ' + response.body);
     if (response.statusCode == 201 || response.statusCode == 200) {
       if (response.body.isNotEmpty) {
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
+          developer.log('[AuthService] signup decoded data: ' + data.toString());
           final token = data['token'] as String?;
           final userData = data['user'] as Map<String, dynamic>?;
 
@@ -102,7 +155,8 @@ class AuthService {
               user: AuthUser.fromJson(userData),
             );
           }
-        } on FormatException {
+        } on FormatException catch (e, st) {
+          developer.log('[AuthService] signup FormatException: ' + e.toString(), error: e, stackTrace: st);
           throw AuthException('Respuesta de signup no es JSON');
         }
       }
@@ -111,9 +165,11 @@ class AuthService {
     }
 
     if (response.statusCode == 400 || response.statusCode == 409) {
+      developer.log('[AuthService] signup error: No fue posible registrar la cuenta');
       throw AuthException('No fue posible registrar la cuenta');
     }
 
+    developer.log('[AuthService] signup error inesperado: ' + response.statusCode.toString());
     throw AuthException('Error inesperado (${response.statusCode})');
   }
 }
