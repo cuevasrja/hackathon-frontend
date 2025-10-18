@@ -5,6 +5,7 @@ import 'package:hackathon_frontend/services/profile_service.dart';
 class EditProfileScreen extends StatefulWidget {
   // Recibimos los datos actuales para pre-rellenar los campos
   final String currentName;
+  final String currentLastName;
   final String currentUserEmail;
   final String currentProfileImageUrl;
   final String currentCity;
@@ -16,6 +17,7 @@ class EditProfileScreen extends StatefulWidget {
     required this.currentUserEmail,
     required this.currentProfileImageUrl,
     required this.currentCity,
+    required this.currentLastName,
     required this.userId,
   });
 
@@ -28,6 +30,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // Controladores para los campos del formulario
   late TextEditingController _nameController;
+  late TextEditingController _lastNameController;
   late TextEditingController _cityController;
   bool _isSaving = false;
   String? _errorMessage;
@@ -38,6 +41,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     // Inicializamos los controllers con los datos actuales
     _nameController = TextEditingController(text: widget.currentName);
+    _lastNameController = TextEditingController(text: widget.currentLastName);
     _cityController = TextEditingController(text: widget.currentCity);
     _profileService = ProfileService();
   }
@@ -45,6 +49,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _lastNameController.dispose();
     _cityController.dispose();
     super.dispose();
   }
@@ -62,8 +67,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       await _profileService.updateUser(
-        id: widget.userId,
         name: _nameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
         city: _cityController.text.trim(),
       );
 
@@ -187,11 +192,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: _buildInputDecoration(
-                  labelText: 'Nombre Completo',
+                  labelText: 'Nombre',
                   icon: Icons.person_outline,
                 ),
                 validator: (value) =>
                     value!.isEmpty ? 'El nombre no puede estar vacío' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _lastNameController,
+                decoration: _buildInputDecoration(
+                  labelText: 'Apellido',
+                  icon: Icons.person,
+                ),
+                validator: (value) =>
+                    value!.isEmpty ? 'El apellido no puede estar vacío' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(

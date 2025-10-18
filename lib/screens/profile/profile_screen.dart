@@ -18,6 +18,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   static const _userIdKey = 'userId';
   // Datos de usuario de ejemplo (en un app real vendrían de un estado o API)
+  String _userFirstName = 'John';
+  String _userLastName = 'Doe';
   String _userName = 'John Doe';
   String _userEmail = 'john.doe@example.com';
   String _profileImageUrl =
@@ -61,6 +63,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final fullName = '${user.name} ${user.lastName}'.trim();
 
       setState(() {
+        _userFirstName = user.name;
+        _userLastName = user.lastName;
         _userName = fullName.isNotEmpty ? fullName : user.email;
         _userEmail = user.email;
         _profileImageUrl = '';
@@ -204,7 +208,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => EditProfileScreen(
-                                          currentName: _userName,
+                                          currentName: _userFirstName,
+                                          currentLastName: _userLastName,
                                           currentUserEmail: _userEmail,
                                           currentProfileImageUrl:
                                               _profileImageUrl,
