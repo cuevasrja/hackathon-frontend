@@ -17,11 +17,15 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   static const _userIdKey = 'userId';
-  // Datos de usuario de ejemplo (en un app real vendrían de un estado o API)
-  String _userName = 'John Doe';
-  String _userEmail = 'john.doe@example.com';
-  String _profileImageUrl = 'https://via.placeholder.com/150/4BBAC3/FFFFFF?text=JD'; // Placeholder
+  // Datos del usuario (se rellenan desde la API)
+  String _userFirstName = '';
+  String _userLastName = '';
+  String _userName = '';
+  String _userEmail = '';
+  String _profileImageUrl = '';
   String _userMembership = '';
+  String _userCity = '';
+  int? _userId;
   late ProfileService _profileService;
   bool _isLoading = true;
   String? _errorMessage;
@@ -51,17 +55,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-  final user = await _profileService.fetchUser(userId);
+      final user = await _profileService.fetchUser(userId);
 
       if (!mounted) return;
 
-      final fullName = '${user.name} ${user.lastName}'.trim();
+      final fetchedFirstName = user.name.trim();
+      final fetchedLastName = user.lastName.trim();
+      final fullName = '${fetchedFirstName} ${fetchedLastName}'.trim();
 
       setState(() {
+        _userFirstName = fetchedFirstName;
+        _userLastName = fetchedLastName;
         _userName = fullName.isNotEmpty ? fullName : user.email;
         _userEmail = user.email;
-        _profileImageUrl = '';
         _userMembership = user.membership;
+        _userCity = user.city;
+        _userId = user.id;
         _isLoading = false;
       });
     } on ProfileException catch (e) {
@@ -95,180 +104,255 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? _buildErrorContent()
-              : Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // --- 1. Foto de Perfil ---
-                            GestureDetector(
-                              onTap: () {
-                                // TODO: Lógica para cambiar la foto de perfil
-                                print('Cambiar foto de perfil');
-                              },
-                              child: Stack(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 100,
-                                    backgroundColor: kPrimaryColor.withOpacity(0.2),
-                                    backgroundImage: _profileImageUrl.isNotEmpty
-                                        ? NetworkImage(_profileImageUrl)
-                                        : null,
-                                    child: _profileImageUrl.isEmpty
-                                        ? Icon(
-                                            Icons.person,
-                                            size: 100,
-                                            color: kPrimaryColor,
-                                          )
-                                        : null,
-                                  ),
-                                  Positioned(
-                                    bottom: 0,
-                                    right: 0,
-                                    child: CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: kPrimaryColor,
-                                      child: Icon(
-                                        Icons.camera_alt,
-                                        size: 20,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+          ? _buildErrorContent()
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // --- 1. Foto de Perfil ---
+                        GestureDetector(
+                          onTap: () {
+                            // TODO: Lógica para cambiar la foto de perfil
+                            print('Cambiar foto de perfil');
+                          },
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 100,
+                                backgroundColor: kPrimaryColor.withOpacity(0.2),
+                                backgroundImage: _profileImageUrl.isNotEmpty
+                                    ? NetworkImage(_profileImageUrl)
+                                    : null,
+                                child: _profileImageUrl.isEmpty
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 100,
+                                        color: kPrimaryColor,
+                                      )
+                                    : null,
                               ),
-                            ),
-                            const SizedBox(height: 24.0),
-
-                            // --- 2. Nombre de Usuario ---
-                            Text(
-                              _userName,
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: kPrimaryColor,
+                                  child: Icon(
+                                    Icons.camera_alt,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8.0),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24.0),
 
-                            // --- 3. Correo Electrónico ---
-                            Text(
-                              _userEmail,
+                        // --- 2. Nombre de Usuario ---
+                        Text(
+                          _userName,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8.0),
+
+                        // --- 3. Correo Electrónico ---
+                        Text(
+                          _userEmail,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        if (_userCity.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              _userCity,
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 color: Colors.grey[600],
                               ),
                             ),
-                            if (_userMembership.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Text(
-                                  'Membresía: $_userMembership',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 32.0),
-
-                            // --- 4. Botón de Editar Perfil ---
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton(
-                                onPressed: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: kPrimaryColor,
-                                  alignment: Alignment.centerLeft,
-                                  padding: const EdgeInsets.symmetric(vertical: 12.0),
-                                  textStyle: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(Icons.edit_outlined, color: kPrimaryColor),
-                                    SizedBox(width: 8.0),
-                                    Text('Editar Perfil'),
-                                  ],
-                                ),
+                          ),
+                        if (_userMembership.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Membresía: $_userMembership',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const Divider(
-                              height: 1,
-                              thickness: 1,
-                              color: Color(0xFFE0E0E0),
-                            ),
-                            const SizedBox(height: 24.0),
+                          ),
+                        const SizedBox(height: 32.0),
 
-                            // --- Secciones de Opciones ---
-                            _buildProfileOption(
-                              icon: Icons.vpn_key_outlined,
-                              title: 'Cambiar Contraseña',
-                              onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
-                              },
-                            ),
-                            _buildProfileOption(
-                              icon: Icons.notifications_none_outlined,
-                              title: 'Notificaciones',
-                              onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
-                              },
-                            ),
-                            _buildProfileOption(
-                              icon: Icons.security_outlined,
-                              title: 'Privacidad',
-                              onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyScreen()));
-                              },
-                            ),
-                            _buildProfileOption(
-                              icon: Icons.help_outline,
-                              title: 'Ayuda y Soporte',
-                              onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const SupportScreen()));
-                              },
-                            ),
-                            const SizedBox(height: 48.0),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 24.0),
-                        child: SizedBox(
+                        // --- 4. Botón de Editar Perfil ---
+                        SizedBox(
                           width: double.infinity,
                           child: TextButton(
-                            onPressed: () {
-                              _logout(context);
-                            },
+                            onPressed: _userId == null
+                                ? null
+                                : () async {
+                                    final nameParts = _userName.trim().isEmpty
+                                        ? <String>[]
+                                        : _userName.trim().split(RegExp(r'\s+'));
+                                    final fallbackFirstName =
+                                        _userFirstName.isNotEmpty
+                                            ? _userFirstName
+                                            : (nameParts.isNotEmpty &&
+                                                    !_userName.contains('@')
+                                                ? nameParts.first
+                                                : '');
+                                    final fallbackLastName =
+                                        _userLastName.isNotEmpty
+                                            ? _userLastName
+                                            : (nameParts.length > 1 &&
+                                                    !_userName.contains('@')
+                                                ? nameParts
+                                                    .sublist(1)
+                                                    .join(' ')
+                                                    .trim()
+                                                : '');
+
+                                    final updated = await Navigator.push<bool>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => EditProfileScreen(
+                                          currentName: fallbackFirstName,
+                                          currentLastName: fallbackLastName,
+                                          currentUserEmail: _userEmail,
+                                          currentProfileImageUrl:
+                                              _profileImageUrl,
+                                          currentCity: _userCity,
+                                          userId: _userId!,
+                                        ),
+                                      ),
+                                    );
+
+                                    if (updated == true && mounted) {
+                                      _loadProfile();
+                                    }
+                                  },
                             style: TextButton.styleFrom(
-                              foregroundColor: Colors.redAccent,
+                              foregroundColor: kPrimaryColor,
                               alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12.0,
+                              ),
                               textStyle: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            child: const Text('Cerrar Sesión'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.edit_outlined, color: kPrimaryColor),
+                                SizedBox(width: 8.0),
+                                Text('Editar Perfil'),
+                              ],
+                            ),
                           ),
                         ),
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Color(0xFFE0E0E0),
+                        ),
+                        const SizedBox(height: 24.0),
+
+                        // --- Secciones de Opciones ---
+                        _buildProfileOption(
+                          icon: Icons.vpn_key_outlined,
+                          title: 'Cambiar Contraseña',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ChangePasswordScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildProfileOption(
+                          icon: Icons.notifications_none_outlined,
+                          title: 'Notificaciones',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildProfileOption(
+                          icon: Icons.security_outlined,
+                          title: 'Privacidad',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PrivacyScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildProfileOption(
+                          icon: Icons.help_outline,
+                          title: 'Ayuda y Soporte',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SupportScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 48.0),
+                      ],
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24.0, 0.0, 24.0, 24.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () {
+                          _logout(context);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.redAccent,
+                          alignment: Alignment.centerLeft,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        child: const Text('Cerrar Sesión'),
                       ),
                     ),
-                  ],
+                  ),
                 ),
+              ],
+            ),
     );
   }
 

@@ -133,6 +133,7 @@ class AuthUser {
     required this.lastName,
     required this.role,
     required this.membership,
+    required this.city,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
@@ -143,6 +144,7 @@ class AuthUser {
       lastName: json['lastName'] as String? ?? '',
       role: json['role'] as String? ?? '',
       membership: json['membership'] as String? ?? '',
+      city: json['city'] as String? ?? '',
     );
   }
 
@@ -152,6 +154,7 @@ class AuthUser {
   final String lastName;
   final String role;
   final String membership;
+  final String city;
 }
 
 class AuthException implements Exception {

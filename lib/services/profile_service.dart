@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/services/auth_service.dart';
@@ -42,6 +43,77 @@ class ProfileService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return AuthUser.fromJson(data);
+    }
+
+    if (response.statusCode == 404) {
+      throw ProfileException('Usuario no encontrado');
+    }
+
+    throw ProfileException('Error inesperado (${response.statusCode})');
+  }
+
+  Future<AuthUser> updateUser({
+    required String name,
+    required String lastName,
+    required String city,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw ProfileException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken');
+    if (token == null || token.isEmpty) {
+      throw ProfileException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/users/me');
+    final payload = {
+      'name': name.trim(),
+      'lastName': lastName.trim(),
+      'city': city.trim(),
+    };
+
+    developer.log(
+      'updateUser -> PUT $uri with token: $token and payload: ${jsonEncode(payload)}',
+      name: 'ProfileService',
+    );
+
+    http.Response response;
+    try {
+      response = await http
+          .put(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw ProfileException('No fue posible conectar con el servidor');
+    }
+
+    developer.log(
+      'updateUser <- status: ${response.statusCode}, body: ${response.body}',
+      name: 'ProfileService',
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return AuthUser.fromJson(data);
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 422) {
+      final decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
+      final message = decoded is Map<String, dynamic>
+          ? decoded['message'] as String? ?? 'Datos inválidos'
+          : 'Datos inválidos';
+      throw ProfileException(message);
     }
 
     if (response.statusCode == 404) {
