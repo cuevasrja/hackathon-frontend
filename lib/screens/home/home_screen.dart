@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/home/communities_screen.dart';
+import 'package:hackathon_frontend/screens/communities/communities_screen.dart';
 import 'package:hackathon_frontend/screens/events/my_events_screen.dart';
 import 'package:hackathon_frontend/screens/profile/profile_screen.dart';
 import 'package:hackathon_frontend/widgets/home_body.dart';

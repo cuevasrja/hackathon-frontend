@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart'; // Para usar las constantes de color
+import 'package:hackathon_frontend/screens/auth/login.dart' as auth; // Para usar las constantes de color
+import 'package:hackathon_frontend/screens/communities/community_detail.dart'
+    as detail;
+import 'package:hackathon_frontend/services/communities_service.dart';
 
 // --- 1. Modelo de Datos para una Comunidad ---
 class Community {
@@ -38,49 +41,64 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     ),
   ];
 
-  final List<Community> _popularCommunities = [
-    Community(
-      name: 'Foodies Caracas',
-      description:
-          'Descubrimos y calificamos los mejores points gastronómicos de la ciudad.',
-      imageUrl: 'https://via.placeholder.com/150/FF6347/FFFFFF?text=Food',
-      memberCount: 1250,
-    ),
-    Community(
-      name: 'Rumbas Ccs 2.0',
-      description:
-          'Aquí se publican los mejores eventos y fiestas del fin de semana.',
-      imageUrl: 'https://via.placeholder.com/150/9370DB/FFFFFF?text=Party',
-      memberCount: 3400,
-      isPrivate: true,
-    ),
-    Community(
-      name: 'USB Rock & Devs',
-      description:
-          'Para gente de la Simón que le gusta el rock, la tecnología y el café.',
-      imageUrl: 'https://via.placeholder.com/150/696969/FFFFFF?text=Rock',
-      memberCount: 450,
-    ),
-  ];
-
   // Controlador para la búsqueda
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  late CommunitiesService _communitiesService;
+  List<CommunitySummary> _discoverCommunities = [];
+  bool _isLoadingDiscover = true;
+  String? _discoverError;
 
   @override
   void initState() {
     super.initState();
+    _communitiesService = CommunitiesService();
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
       });
     });
+    _loadCommunities();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCommunities() async {
+    setState(() {
+      _isLoadingDiscover = true;
+      _discoverError = null;
+    });
+
+    try {
+      final communities = await _communitiesService.fetchCommunities();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _discoverCommunities = communities;
+        _isLoadingDiscover = false;
+      });
+    } on CommunitiesException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _discoverError = e.message;
+        _isLoadingDiscover = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _discoverError = 'Error inesperado al cargar comunidades.';
+        _isLoadingDiscover = false;
+      });
+    }
   }
 
   // Función para filtrar comunidades según la búsqueda
@@ -105,24 +123,23 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   Widget build(BuildContext context) {
     // Usamos un TabController para manejar las pestañas
     return DefaultTabController(
-      length: 3, // Número de pestañas
+      length: 2, // Número de pestañas
       child: Scaffold(
-        backgroundColor: kBackgroundColor,
+        backgroundColor: auth.kBackgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
           title: const Text(
             'Comunidades',
-            style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
+            style: TextStyle(color: auth.kPrimaryColor, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
           bottom: TabBar(
-            indicatorColor: kPrimaryColor,
-            labelColor: kPrimaryColor,
+            indicatorColor: auth.kPrimaryColor,
+            labelColor: auth.kPrimaryColor,
             unselectedLabelColor: Colors.grey[500],
             tabs: const [
-              Tab(text: 'Mis Grupos'),
-              Tab(text: 'Populares'),
+              Tab(text: 'Mis Comunidades'),
               Tab(text: 'Descubrir'),
             ],
           ),
@@ -154,14 +171,10 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  // Contenido de "Mis Grupos"
+                  // Contenido de "Mis Comunidades"
                   _buildCommunityList(_filterCommunities(_myCommunities)),
-                  // Contenido de "Populares"
-                  _buildCommunityList(_filterCommunities(_popularCommunities)),
-                  // Contenido de "Descubrir" (usamos los populares como ejemplo)
-                  _buildCommunityList(
-                    _filterCommunities(_popularCommunities.reversed.toList()),
-                  ),
+                  // Contenido de "Descubrir"
+                  _buildDiscoverTab(),
                 ],
               ),
             ),
@@ -173,7 +186,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             // TODO: Lógica para navegar a una pantalla de creación de comunidad
             print('Crear nueva comunidad');
           },
-          backgroundColor: kPrimaryColor,
+          backgroundColor: auth.kPrimaryColor,
           child: const Icon(Icons.add, color: Colors.white),
         ),
       ),
@@ -255,7 +268,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                     Text(
                       '${community.memberCount} miembros',
                       style: TextStyle(
-                        color: kPrimaryColor,
+                        color: auth.kPrimaryColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -263,7 +276,141 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                 ),
               ),
               // Icono para unirse
-              Icon(Icons.arrow_forward_ios, color: Colors.grey[400]),
+              const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiscoverTab() {
+    if (_isLoadingDiscover) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_discoverError != null) {
+      return _buildDiscoverError();
+    }
+
+    final filtered = _filterCommunitySummaries(_discoverCommunities);
+    if (filtered.isEmpty) {
+      return Center(
+        child: Text(
+          _searchQuery.isEmpty
+              ? 'No hay comunidades disponibles.'
+              : 'No se encontraron comunidades con ese nombre.',
+          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        final community = filtered[index];
+        return _buildCommunitySummaryCard(community);
+      },
+    );
+  }
+
+  Widget _buildDiscoverError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _discoverError ?? 'Error al cargar comunidades.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, color: Colors.black54),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadCommunities,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: auth.kPrimaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<CommunitySummary> _filterCommunitySummaries(
+    List<CommunitySummary> communities,
+  ) {
+    if (_searchQuery.isEmpty) {
+      return communities;
+    }
+    return communities
+        .where(
+          (community) => community.name.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ),
+        )
+        .toList();
+  }
+
+  Widget _buildCommunitySummaryCard(CommunitySummary community) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => detail.CommunityDetailsScreen(
+                communityId: community.id,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              Hero(
+                tag: 'community-${community.id}',
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: auth.kPrimaryColor.withOpacity(0.2),
+                  child: const Icon(Icons.people, color: auth.kPrimaryColor),
+                ),
+              ),
+              const SizedBox(width: 16.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      community.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${community.membersCount} miembros · ${community.eventsCount} eventos',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${community.requestsCount} solicitudes pendientes',
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.grey),
             ],
           ),
         ),
