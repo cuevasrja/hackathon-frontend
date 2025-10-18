@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hackathon_frontend/screens/home/calendar_screen.dart';
 import '../auth/login.dart'; // Para usar las constantes de color
 
 // --- 1. Modelo de Datos para un Plan/Evento ---
@@ -88,6 +89,17 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.calendar_today, color: kPrimaryColor),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CalendarScreen()),
+                );
+              },
+            ),
+          ],
           bottom: TabBar(
             indicatorColor: kPrimaryColor,
             labelColor: kPrimaryColor,
