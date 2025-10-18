@@ -1,3 +1,4 @@
+import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
@@ -95,64 +96,66 @@ class EventDetailsScreen extends StatelessWidget {
                   }
                   final fallbackUri = Uri.parse(storeUrl);
 
-                  // 3. Intenta abrir la app
-                  try {
-                    bool opened = false;
+                  // 3. Intenta abrir la app directamente
+                  bool opened = false;
 
-                    if (platform == TargetPlatform.android) {
-                      final appUri = Uri.parse('yummyrides://rides');
-                      opened = await launchUrl(
-                        appUri,
-                        mode: LaunchMode.externalNonBrowserApplication,
-                      );
+                  if (platform == TargetPlatform.android ||
+                      platform == TargetPlatform.iOS) {
+                    try {
+                      final isInstalled =
+                          await LaunchApp.isAppInstalled(
+                            androidPackageName: 'com.yummyrides',
+                            iosUrlScheme: 'yummyrides://',
+                          ) ==
+                          true;
 
-                      if (!opened) {
-                        final intentUri = Uri.parse(
-                          'intent://rides#Intent;scheme=yummyrides;package=com.yummyrides;end',
+                      if (isInstalled) {
+                        opened =
+                            await LaunchApp.openApp(
+                              androidPackageName: 'com.yummyrides',
+                              iosUrlScheme: 'yummyrides://',
+                              appStoreLink:
+                                  'https://apps.apple.com/app/id1522818234',
+                              openStore: false,
+                            ) ==
+                            1;
+                      } else {
+                        final result = await LaunchApp.openApp(
+                          androidPackageName: 'com.yummyrides',
+                          iosUrlScheme: 'yummyrides://',
+                          appStoreLink:
+                              'https://apps.apple.com/app/id1522818234',
+                          openStore: true,
                         );
-                        opened = await launchUrl(
-                          intentUri,
-                          mode: LaunchMode.externalApplication,
-                        );
+
+                        // Si la app no está instalada y se abre la tienda, consideramos la acción exitosa
+                        opened = result == 1 || result == 0;
                       }
-                    } else if (platform == TargetPlatform.iOS) {
-                      final appUri = Uri.parse('yummyrides://rides');
-                      opened = await launchUrl(
-                        appUri,
-                        mode: LaunchMode.externalNonBrowserApplication,
-                      );
+                    } catch (_) {
+                      opened = false;
                     }
+                  }
 
-                    if (!opened) {
+                  if (!opened) {
+                    try {
                       opened = await launchUrl(
                         fallbackUri,
                         mode: LaunchMode.externalApplication,
                       );
-                    }
-
-                    if (!opened && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('No se pudo abrir el enlace'),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    // Si hay una excepción (raro, pero posible), lanza el fallback
-                    final opened = await launchUrl(
-                      fallbackUri,
-                      mode: LaunchMode.externalApplication,
-                    );
-                    if (!opened && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('No se pudo abrir el enlace'),
-                        ),
-                      );
+                    } catch (_) {
+                      opened = false;
                     }
                   }
+
+                  if (!opened && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No se pudo abrir el enlace'),
+                      ),
+                    );
+                  }
                 },
-                style: TextButton.styleFrom(foregroundColor: kPrimaryColor),
+                style: TextButton.styleFrom(foregroundColor: Color(0xFF8d55d8)),
                 icon: const Icon(Icons.directions_car_outlined, size: 18),
                 label: const Text('Cómo llegar'),
               ),
