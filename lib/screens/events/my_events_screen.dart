@@ -1,26 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/screens/home/calendar_screen.dart';
+import 'package:hackathon_frontend/services/event_service.dart';
+import 'package:hackathon_frontend/models/event_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login.dart'; // Para usar las constantes de color
 import 'create_events.dart';
-
-// --- 1. Modelo de Datos para un Plan/Evento ---
-class Plan {
-  final String title;
-  final String imageUrl;
-  final DateTime date;
-  final String location;
-  final int participantCount;
-  final int maxParticipants;
-
-  Plan({
-    required this.title,
-    required this.imageUrl,
-    required this.date,
-    required this.location,
-    required this.participantCount,
-    required this.maxParticipants,
-  });
-}
 
 // --- 2. Pantalla Principal "Mis Eventos" ---
 class MyEventsScreen extends StatefulWidget {
@@ -31,50 +15,154 @@ class MyEventsScreen extends StatefulWidget {
 }
 
 class _MyEventsScreenState extends State<MyEventsScreen> {
-  // --- Datos de Ejemplo (en un app real vendrían de una base de datos) ---
-  final List<Plan> _organizedPlans = [
-    Plan(
-      title: 'Hiking al Pico Naiguatá',
-      imageUrl:
-          'https://via.placeholder.com/300x150/2E8B57/FFFFFF?text=El+Avila',
-      date: DateTime.now().add(const Duration(days: 3, hours: 2)),
-      location: 'Parque Nacional El Ávila',
-      participantCount: 8,
-      maxParticipants: 10,
-    ),
-  ];
+  final EventService _eventService = EventService();
+  final ScrollController _scrollController = ScrollController();
 
-  final List<Plan> _attendingPlans = [
-    Plan(
-      title: 'Noche de Cine (Estreno)',
-      imageUrl: 'https://via.placeholder.com/300x150/4682B4/FFFFFF?text=Cine',
-      date: DateTime.now().add(const Duration(days: 1, hours: 4)),
-      location: 'Cines Unidos - Sambil Ccs',
-      participantCount: 4,
-      maxParticipants: 6,
-    ),
-    Plan(
-      title: 'Brunch y Mimosas',
-      imageUrl:
-          'https://via.placeholder.com/300x150/FF6347/FFFFFF?text=Restaurante',
-      date: DateTime.now().add(const Duration(days: 4, hours: 6)),
-      location: 'Rest. Mokambo, Las Mercedes',
-      participantCount: 5,
-      maxParticipants: 8,
-    ),
-  ];
+  final List<Event> _organizedEvents = [];
+  final List<Event> _attendingEvents = [];
+  final List<Event> _pastEvents = [];
 
-  final List<Plan> _pastPlans = [
-    Plan(
-      title: 'Escape Room "El Secuestro"',
-      imageUrl:
-          'https://via.placeholder.com/300x150/696969/FFFFFF?text=Escape+Room',
-      date: DateTime.now().subtract(const Duration(days: 7)),
-      location: 'Escape Room Vzla, CCCT',
-      participantCount: 6,
-      maxParticipants: 6,
-    ),
-  ];
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  String? _errorMessage;
+  int? _currentUserId;
+  int _currentPage = 1;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _initializeUserAndLoadEvents();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeUserAndLoadEvents() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt(LoginStorageKeys.userId);
+
+      if (!mounted) return;
+
+      if (userId == null) {
+        setState(() {
+          _errorMessage = 'No se pudo identificar al usuario autenticado.';
+        });
+        return;
+      }
+
+      setState(() {
+        _currentUserId = userId;
+      });
+
+      await _loadEvents(reset: true);
+    } on Exception {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error inesperado al cargar tus eventos.';
+      });
+    }
+  }
+
+  Future<void> _loadEvents({required bool reset}) async {
+    if (_isLoading || _isLoadingMore || (!_hasMore && !reset)) {
+      return;
+    }
+
+    setState(() {
+      if (reset) {
+        _isLoading = true;
+        _errorMessage = null;
+      } else {
+        _isLoadingMore = true;
+      }
+    });
+
+    try {
+      final pageToLoad = reset ? 1 : _currentPage + 1;
+      print(reset ? 'Cargando eventos desde el inicio...' : 'Cargando más eventos, página $pageToLoad...');
+      final response = await _eventService.fetchEvents(page: pageToLoad);
+
+      print('Eventos cargados: ${response.events.length}');
+
+      if (!mounted) return;
+
+      print('Usuario actual ID: $_currentUserId');
+
+      final now = DateTime.now();
+      final newOrganized = <Event>[];
+      final newAttending = <Event>[];
+      final newPast = <Event>[];
+
+      for (var event in response.events) {
+        if (event.organizerId == _currentUserId) {
+          newOrganized.add(event);
+        } else if (event.timeBegin.isAfter(now)) {
+          // Asumiendo que si no es el dueño y la fecha es futura, asiste
+          newAttending.add(event);
+        } else {
+          newPast.add(event);
+        }
+      }
+
+      setState(() {
+        if (reset) {
+          _organizedEvents
+            ..clear()
+            ..addAll(newOrganized);
+          _attendingEvents
+            ..clear()
+            ..addAll(newAttending);
+          _pastEvents
+            ..clear()
+            ..addAll(newPast);
+        } else {
+          _organizedEvents.addAll(newOrganized);
+          _attendingEvents.addAll(newAttending);
+          _pastEvents.addAll(newPast);
+        }
+        _currentPage = response.page;
+        _hasMore = response.page < response.total;
+      });
+    } on EventException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      print('Error desconocido al cargar eventos ${e.toString()}');
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Error inesperado al cargar los eventos.';
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        _hasMore &&
+        !_isLoading &&
+        !_isLoadingMore) {
+      _loadEvents(reset: false);
+    }
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadEvents(reset: true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,15 +200,10 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            // Contenido de "Yo Organizo"
-            _buildPlanList(_organizedPlans),
-            // Contenido de "Asistiré"
-            _buildPlanList(_attendingPlans),
-            // Contenido de "Historial"
-            _buildPlanList(_pastPlans, isPast: true),
-          ],
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          color: kPrimaryColor,
+          child: _buildBody(),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
@@ -138,32 +221,92 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     );
   }
 
-  // --- Widget Helper para construir la lista de planes ---
-  Widget _buildPlanList(List<Plan> plans, {bool isPast = false}) {
-    if (plans.isEmpty) {
-      return Center(
-        child: Text(
-          'Aún no tienes planes en esta sección.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+  Widget _buildBody() {
+    if (_isLoading && _organizedEvents.isEmpty && _attendingEvents.isEmpty && _pastEvents.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null && _organizedEvents.isEmpty && _attendingEvents.isEmpty && _pastEvents.isEmpty) {
+      return _buildErrorState();
+    }
+
+    return TabBarView(
+      children: [
+        _buildPlanList(_organizedEvents),
+        _buildPlanList(_attendingEvents),
+        _buildPlanList(_pastEvents, isPast: true),
+      ],
+    );
+  }
+
+  Widget _buildErrorState() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 48.0),
+      children: [
+        Icon(Icons.error_outline, size: 48, color: Colors.redAccent.shade200),
+        const SizedBox(height: 16),
+        Text(
+          _errorMessage ?? 'Error al cargar los eventos.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16, color: Colors.black54),
         ),
-      );
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () => _loadEvents(reset: true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kPrimaryColor,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Reintentar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      children: [
+        const SizedBox(height: 120),
+        const Icon(Icons.sentiment_dissatisfied, size: 48, color: kPrimaryColor),
+        const SizedBox(height: 16),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+
+  // --- Widget Helper para construir la lista de planes ---
+  Widget _buildPlanList(List<Event> events, {bool isPast = false}) {
+    if (events.isEmpty && !_isLoading) {
+      return _buildEmptyState('Aún no tienes planes en esta sección.');
     }
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16.0),
-      itemCount: plans.length,
+      itemCount: events.length + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
-        final plan = plans[index];
+        if (index >= events.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final event = events[index];
         // Para el historial, aplicamos un filtro grisáceo
         return Opacity(
           opacity: isPast ? 0.7 : 1.0,
-          child: _buildPlanCard(plan),
+          child: _buildPlanCard(event),
         );
       },
     );
   }
 
   // --- Widget Helper para el diseño de cada tarjeta de plan ---
-  Widget _buildPlanCard(Plan plan) {
+  Widget _buildPlanCard(Event event) {
     // Lista de meses para formatear la fecha
     const List<String> meses = [
       'Ene',
@@ -179,8 +322,10 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       'Nov',
       'Dic',
     ];
-    String formattedDate =
-        '${plan.date.day} de ${meses[plan.date.month - 1]} - ${plan.date.hour}:${plan.date.minute.toString().padLeft(2, '0')}';
+  // Usar timeBegin del modelo Event (fecha y hora de inicio)
+  final date = event.timeBegin;
+  String formattedDate =
+    '${date.day} de ${meses[date.month - 1]} - ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 20.0),
@@ -190,7 +335,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       child: InkWell(
         onTap: () {
           // TODO: Navegar a la pantalla de detalle del plan
-          print('Viendo detalles de: ${plan.title}');
+          print('Viendo detalles de: ${event.name}');
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,9 +343,10 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             // --- Imagen del Plan ---
             Hero(
               // Para una animación bonita al abrir el detalle
-              tag: plan.title, // Un tag único, como el ID del plan
+              tag: event.name, // Un tag único, como el ID del plan
               child: Image.network(
-                plan.imageUrl,
+                // Intentar usar la imagen del lugar, luego la URL externa, luego un placeholder
+                event.place?.image ?? event.externalUrl ?? 'https://via.placeholder.com/300x150/CCCCCC/FFFFFF?text=No+Image',
                 width: double.infinity,
                 height: 150,
                 fit: BoxFit.cover,
@@ -237,7 +383,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    plan.title,
+                    event.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
@@ -271,7 +417,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                       const SizedBox(width: 8.0),
                       Expanded(
                         child: Text(
-                          plan.location,
+                          // Mostrar la dirección del lugar si existe, si no mostrar el nombre del lugar o 'Ubicación no disponible'
+                          event.place?.direction ?? event.place?.name ?? 'Ubicación no disponible',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[800],
@@ -292,7 +439,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                       ),
                       const SizedBox(width: 8.0),
                       Text(
-                        '${plan.participantCount} / ${plan.maxParticipants} personas',
+                        '0 / ${event.place?.capacity ?? event.ticketCount?.tickets ?? 0} personas', // Assuming 0 participants for now
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -302,8 +449,9 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                       const Spacer(),
                       // Esto es un indicador visual (podría ser un avatar stack)
                       _buildParticipantIndicator(
-                        plan.participantCount,
-                        plan.maxParticipants,
+                        0, // Assuming 0 participants for now
+                        // Evitar división por cero: fallback a 1 si capacity es 0
+                        (event.place?.capacity ?? event.ticketCount?.tickets ?? 1),
                       ),
                     ],
                   ),
@@ -318,6 +466,18 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
   // Helper visual para la barra de participantes
   Widget _buildParticipantIndicator(int current, int max) {
+    // Calcular ratio de forma segura para evitar NaN/infinite
+    final safeMax = (max <= 0) ? 1 : max;
+    double ratio = 0.0;
+    try {
+      ratio = (current / safeMax).toDouble();
+    } catch (_) {
+      ratio = 0.0;
+    }
+    if (!ratio.isFinite) ratio = 0.0;
+    ratio = ratio.clamp(0.0, 1.0);
+    final fillWidth = 80 * ratio;
+
     return Stack(
       children: [
         Container(
@@ -328,8 +488,9 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             borderRadius: BorderRadius.circular(4),
           ),
         ),
-        Container(
-          width: 80 * (current / max), // Ancho proporcional
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: fillWidth,
           height: 8,
           decoration: BoxDecoration(
             color: kPrimaryColor,
