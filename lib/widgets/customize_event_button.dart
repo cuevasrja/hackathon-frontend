@@ -15,7 +15,7 @@ class CustomizeEventButton extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const AIPlannerScreen()),
           );
         },
-        child: const Text('Planear evento'),
+        child: const Text('Planear evento con PlanIA'),
       ),
     );
   }
