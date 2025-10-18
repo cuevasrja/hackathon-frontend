@@ -78,6 +78,118 @@ class EventService {
     throw EventException('Error inesperado (${response.statusCode})');
   }
 
+  Future<Event> createEvent({
+    required String name,
+    required String description,
+    required DateTime timeBegin,
+    DateTime? timeEnd,
+    int? placeId,
+    int? minAge,
+    String? status,
+    required String visibility,
+    int? communityId,
+    String? externalUrl,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw EventException('API_BASE_URL no está configurado');
+    }
+
+    if (visibility.toUpperCase() == 'PUBLIC' && communityId == null) {
+      throw EventException('Debes indicar la comunidad para eventos públicos');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw EventException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/events');
+
+    final payload = <String, dynamic>{
+      'name': name.trim(),
+      'description': description.trim(),
+      'timeBegin': timeBegin.toUtc().toIso8601String(),
+      'timeEnd': (timeEnd ?? timeBegin).toUtc().toIso8601String(),
+      'visibility': visibility,
+    };
+
+    if (placeId != null) {
+      payload['placeId'] = placeId;
+    }
+
+    if (minAge != null) {
+      payload['minAge'] = minAge;
+    }
+
+    if (status != null && status.isNotEmpty) {
+      payload['status'] = status;
+    }
+
+    if (communityId != null) {
+      payload['communityId'] = communityId;
+    }
+
+    if (externalUrl != null && externalUrl.trim().isNotEmpty) {
+      payload['externalUrl'] = externalUrl.trim();
+    }
+
+    developer.log(
+      'createEvent -> POST $uri payload=${jsonEncode(payload)}',
+      name: 'EventService',
+    );
+
+    http.Response response;
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw EventException('No fue posible conectar con el servidor');
+    }
+
+    developer.log(
+      'createEvent <- status: ${response.statusCode}, body: ${response.body}',
+      name: 'EventService',
+    );
+
+    final decodedBody = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      if (decodedBody is Map<String, dynamic>) {
+        final eventData = decodedBody['event'] ?? decodedBody;
+        if (eventData is Map<String, dynamic>) {
+          return Event.fromJson(eventData);
+        }
+      }
+      throw EventException('Respuesta inválida al crear el evento');
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 422) {
+      final message = decodedBody is Map<String, dynamic>
+          ? decodedBody['message'] as String? ?? 'Datos inválidos'
+          : 'Datos inválidos';
+      throw EventException(message);
+    }
+
+    if (response.statusCode == 401) {
+      throw EventException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    final message = decodedBody is Map<String, dynamic>
+        ? decodedBody['message'] as String? ?? 'No fue posible crear el evento'
+        : 'No fue posible crear el evento';
+    throw EventException(message);
+  }
+
   Future<List<Event>> fetchJoinedEvents() async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {

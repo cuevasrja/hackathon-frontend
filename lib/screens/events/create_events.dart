@@ -171,8 +171,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         ? Column(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
-                              Icon(Icons.check_circle,
-                                  color: kPrimaryColor, size: 48),
+                              Icon(
+                                Icons.check_circle,
+                                color: kPrimaryColor,
+                                size: 48,
+                              ),
                               SizedBox(height: 8),
                               Text(
                                 'Imagen seleccionada',
@@ -183,8 +186,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.camera_alt_outlined,
-                                  color: kPrimaryColor, size: 42),
+                              Icon(
+                                Icons.camera_alt_outlined,
+                                color: kPrimaryColor,
+                                size: 42,
+                              ),
                               const SizedBox(height: 8),
                               const Text(
                                 'Añadir foto del plan',
