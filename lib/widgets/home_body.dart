@@ -10,31 +10,40 @@ class HomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
             children: <Widget>[
-              Center(
-                child: SvgPicture.asset(
-                  'lib/assets/icon_logo_clear.svg',
-                  height: 50,
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Center(
+                      child: SvgPicture.asset(
+                        'lib/assets/icon_logo_clear.svg',
+                        height: 50,
+                      ),
+                    ),
+                    Text(
+                      '¡Es hora de un plancito!',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const Text(
+                      'Una forma rápida y cómoda de organizar tus salidas.',
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '¡Es hora de un plancito!',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const Text('Una forma rápida y cómoda de organizar tus salidas.'),
+              const GettingStartedCard(),
+              const WhatsForEventSection(),
+              const ManageYourEventsSection(),
+              const SizedBox(height: 16),
             ],
           ),
         ),
-        const GettingStartedCard(),
-        const WhatsForEventSection(),
-        const ManageYourEventsSection(),
-        const CustomizeEventButton(),
+        const CustomizeEventButton(margin: EdgeInsets.fromLTRB(16, 16, 16, 24)),
       ],
     );
   }
