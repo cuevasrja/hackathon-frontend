@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 //import 'package:dotted_border/dotted_border.dart'; // Importamos el paquete
 import '../auth/login.dart'; // Para usar las constantes de color
+import 'package:hackathon_frontend/services/event_service.dart';
+import 'package:hackathon_frontend/services/communities_service.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -17,13 +19,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   late TextEditingController _descriptionController;
   late TextEditingController _locationController;
   late TextEditingController _participantsController;
+  late TextEditingController _minAgeController;
+  late TextEditingController _externalUrlController;
 
   DateTime? _selectedDate;
   String? _selectedCategory;
   bool _isPrivate = false;
+  bool _submitting = false;
   // En un app real, aquí guardarías el archivo de imagen.
   // Por ahora, simulamos que se ha seleccionado una.
   bool _imageSelected = false;
+
+  List<CommunitySummary> _communities = [];
+  int? _selectedCommunityId;
 
   final List<String> _categories = [
     'Gastronomía',
@@ -42,6 +50,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _descriptionController = TextEditingController();
     _locationController = TextEditingController();
     _participantsController = TextEditingController();
+    _minAgeController = TextEditingController();
+    _externalUrlController = TextEditingController();
+    _loadCommunities();
   }
 
   @override
@@ -50,6 +61,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     _participantsController.dispose();
+    _minAgeController.dispose();
+    _externalUrlController.dispose();
     super.dispose();
   }
 
@@ -80,38 +93,78 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     }
   }
 
-  // --- Lógica para "crear" el plan ---
-  void _createPlan() {
-    if (_formKey.currentState!.validate()) {
-      // Validamos que se haya seleccionado fecha y categoría
-      if (_selectedDate == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Por favor, selecciona una fecha y hora'),
-          ),
-        );
-        return;
-      }
+  Future<void> _loadCommunities() async {
+    try {
+      final list = await CommunitiesService().fetchCommunities();
+      if (!mounted) return;
+      setState(() {
+        _communities = list;
+      });
+    } catch (_) {}
+  }
 
-      // Aquí recolectarías todos los datos y los enviarías a tu backend
-      print('--- NUEVO PLAN CREADO ---');
-      print('Título: ${_titleController.text}');
-      print('Descripción: ${_descriptionController.text}');
-      print('Categoría: $_selectedCategory');
-      print('Fecha y Hora: $_selectedDate');
-      print('Ubicación: ${_locationController.text}');
-      print('Participantes: ${_participantsController.text}');
-      print('Privado: $_isPrivate');
-      print('Imagen Seleccionada: $_imageSelected');
+  Future<void> _createPlan() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecciona una fecha y hora'),
+        ),
+      );
+      return;
+    }
 
+    if (!_isPrivate && _selectedCommunityId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona una comunidad para planes públicos'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      final minAge = _minAgeController.text.trim().isEmpty
+          ? null
+          : int.tryParse(_minAgeController.text.trim());
+
+      await EventService().createEvent(
+        name: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        timeBegin: _selectedDate!,
+        timeEnd: null,
+        placeId: null,
+        minAge: minAge,
+        status: null,
+        visibility: _isPrivate ? 'PRIVATE' : 'PUBLIC',
+        communityId: _selectedCommunityId,
+        externalUrl: _externalUrlController.text.trim().isEmpty
+            ? null
+            : _externalUrlController.text.trim(),
+      );
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('¡Tu plancito ha sido creado con éxito!'),
           backgroundColor: kPrimaryColor,
         ),
       );
-      // Regresamos a la pantalla anterior
       Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+      });
     }
   }
 
@@ -276,6 +329,32 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
               const SizedBox(height: 16),
 
+              DropdownButtonFormField<int>(
+                value: _selectedCommunityId,
+                decoration: _buildInputDecoration(
+                  hintText: 'Comunidad',
+                  icon: Icons.groups_outlined,
+                ),
+                items: _communities
+                    .map((c) => DropdownMenuItem<int>(
+                          value: c.id,
+                          child: Text(c.name),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  setState(() {
+                    _selectedCommunityId = v;
+                  });
+                },
+                validator: (value) {
+                  if (!_isPrivate && (value == null)) {
+                    return 'Selecciona una comunidad';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
               // --- Ubicación y Participantes (en una fila) ---
               Row(
                 children: [
@@ -309,6 +388,33 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
               const SizedBox(height: 16),
 
+              TextFormField(
+                controller: _minAgeController,
+                decoration: _buildInputDecoration(
+                  hintText: 'Edad mínima (opcional)',
+                  icon: Icons.cake_outlined,
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    final v = int.tryParse(value.trim());
+                    if (v == null || v < 0) return 'Número inválido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _externalUrlController,
+                decoration: _buildInputDecoration(
+                  hintText: 'Enlace externo (opcional)',
+                  icon: Icons.link_outlined,
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 16),
+
               // --- Switch Público/Privado ---
               SwitchListTile(
                 title: const Text('Plan Privado'),
@@ -329,7 +435,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _createPlan,
+                  onPressed: _submitting ? null : _createPlan,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryColor,
                     foregroundColor: Colors.white,
@@ -338,10 +444,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
-                  child: const Text(
-                    'CREAR PLANCITO',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'CREAR PLANCITO',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ],
