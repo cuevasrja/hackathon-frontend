@@ -17,10 +17,7 @@ class HomeBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              SvgPicture.asset(
-                'lib/assets/icon_logo_clear.svg',
-                height: 50,
-              ),
+              SvgPicture.asset('lib/assets/icon_logo_clear.svg', height: 50),
               Text(
                 'It\'s time to eat!',
                 style: Theme.of(context).textTheme.headlineMedium,
