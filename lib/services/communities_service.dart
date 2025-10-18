@@ -12,6 +12,9 @@ class CommunitySummary {
     required this.membersCount,
     required this.eventsCount,
     required this.requestsCount,
+    this.description,
+    this.imageUrl,
+    this.isPrivate,
   });
 
   factory CommunitySummary.fromJson(Map<String, dynamic> json) {
@@ -22,6 +25,9 @@ class CommunitySummary {
       membersCount: counts?['members'] as int? ?? 0,
       eventsCount: counts?['events'] as int? ?? 0,
       requestsCount: counts?['requests'] as int? ?? 0,
+      description: json['description'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      isPrivate: json['isPrivate'] as bool?,
     );
   }
 
@@ -30,6 +36,9 @@ class CommunitySummary {
   final int membersCount;
   final int eventsCount;
   final int requestsCount;
+  final String? description;
+  final String? imageUrl;
+  final bool? isPrivate;
 }
 
 class CommunitiesService {
@@ -51,16 +60,15 @@ class CommunitiesService {
 
     final uri = Uri.parse('$baseUrl/api/communities');
 
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
     http.Response response;
     try {
       response = await http
-          .get(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
+          .get(uri, headers: headers)
           .timeout(const Duration(seconds: 15));
     } on Exception {
       throw CommunitiesException('No fue posible conectar con el servidor');
@@ -158,7 +166,9 @@ class CommunitiesService {
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
 
-    final decodedBody = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+    final decodedBody = response.body.isNotEmpty
+        ? jsonDecode(response.body)
+        : null;
 
     if (response.statusCode == 201) {
       if (decodedBody is! Map<String, dynamic>) {
@@ -179,17 +189,82 @@ class CommunitiesService {
     }
 
     final errorMessage = decodedBody is Map<String, dynamic>
-        ? decodedBody['message'] as String? ?? 'Error inesperado al crear la comunidad'
+        ? decodedBody['message'] as String? ??
+              'Error inesperado al crear la comunidad'
         : 'Error inesperado al crear la comunidad';
     throw CommunitiesException(errorMessage);
+  }
+
+  Future<List<CommunitySummary>> fetchUserCommunities(int userId) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw CommunitiesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw CommunitiesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/users/member/$userId');
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    http.Response response;
+    try {
+      response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw CommunitiesException('No fue posible conectar con el servidor');
+    }
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      List<dynamic>? communitiesJson;
+
+      if (decoded is List) {
+        communitiesJson = decoded;
+      } else if (decoded is Map<String, dynamic>) {
+        final communitiesField = decoded['communities'];
+        if (communitiesField is List) {
+          communitiesJson = communitiesField;
+        }
+      }
+
+      if (communitiesJson == null) {
+        throw CommunitiesException('Respuesta inválida del servidor');
+      }
+
+      return communitiesJson.whereType<Map<String, dynamic>>().map((item) {
+        if (item.containsKey('community') &&
+            item['community'] is Map<String, dynamic>) {
+          return CommunitySummary.fromJson(
+            item['community'] as Map<String, dynamic>,
+          );
+        }
+        return CommunitySummary.fromJson(item);
+      }).toList();
+    }
+
+    if (response.statusCode == 401) {
+      throw CommunitiesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    if (response.statusCode == 404) {
+      throw CommunitiesException('Comunidades no encontradas para el usuario');
+    }
+
+    throw CommunitiesException('Error inesperado (${response.statusCode})');
   }
 }
 
 class CommunityCreationResponse {
-  CommunityCreationResponse({
-    required this.message,
-    required this.community,
-  });
+  CommunityCreationResponse({required this.message, required this.community});
 
   factory CommunityCreationResponse.fromJson(Map<String, dynamic> json) {
     final communityJson = json['community'];
@@ -208,10 +283,7 @@ class CommunityCreationResponse {
 }
 
 class CreatedCommunity {
-  CreatedCommunity({
-    required this.id,
-    required this.name,
-  });
+  CreatedCommunity({required this.id, required this.name});
 
   factory CreatedCommunity.fromJson(Map<String, dynamic> json) {
     return CreatedCommunity(

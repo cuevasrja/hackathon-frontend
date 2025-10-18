@@ -4,23 +4,7 @@ import 'package:hackathon_frontend/screens/communities/community_detail.dart'
     as detail;
 import 'package:hackathon_frontend/screens/communities/create_community.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
-
-// --- 1. Modelo de Datos para una Comunidad ---
-class Community {
-  final String name;
-  final String description;
-  final String imageUrl;
-  final int memberCount;
-  final bool isPrivate;
-
-  Community({
-    required this.name,
-    required this.description,
-    required this.imageUrl,
-    required this.memberCount,
-    this.isPrivate = false,
-  });
-}
+import 'package:shared_preferences/shared_preferences.dart';
 
 // --- 2. Pantalla Principal de Comunidades ---
 class CommunitiesScreen extends StatefulWidget {
@@ -31,24 +15,16 @@ class CommunitiesScreen extends StatefulWidget {
 }
 
 class _CommunitiesScreenState extends State<CommunitiesScreen> {
-  // --- Datos de Ejemplo (en un app real vendrían de una base de datos) ---
-  final List<Community> _myCommunities = [
-    Community(
-      name: 'Senderistas USB',
-      description:
-          'Grupo para organizar excursiones y hikes en El Ávila y más allá.',
-      imageUrl: 'https://via.placeholder.com/150/2E8B57/FFFFFF?text=USB',
-      memberCount: 280,
-    ),
-  ];
-
   // Controlador para la búsqueda
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   late CommunitiesService _communitiesService;
   List<CommunitySummary> _discoverCommunities = [];
+  List<CommunitySummary> _myCommunities = [];
   bool _isLoadingDiscover = true;
+  bool _isLoadingMyCommunities = true;
   String? _discoverError;
+  String? _myCommunitiesError;
 
   @override
   void initState() {
@@ -72,52 +48,58 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     setState(() {
       _isLoadingDiscover = true;
       _discoverError = null;
+      _isLoadingMyCommunities = true;
+      _myCommunitiesError = null;
     });
 
-    try {
-      final communities = await _communitiesService.fetchCommunities();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _discoverCommunities = communities;
-        _isLoadingDiscover = false;
-      });
-    } on CommunitiesException catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _discoverError = e.message;
-        _isLoadingDiscover = false;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _discoverError = 'Error inesperado al cargar comunidades.';
-        _isLoadingDiscover = false;
-      });
-    }
-  }
+    SharedPreferences? prefs;
+    int? userId;
 
-  // Función para filtrar comunidades según la búsqueda
-  List<Community> _filterCommunities(List<Community> communities) {
-    if (_searchQuery.isEmpty) {
-      return communities;
+    try {
+      prefs = await SharedPreferences.getInstance();
+      userId = prefs.getInt(auth.LoginStorageKeys.userId);
+    } on Exception {
+      userId = null;
     }
-    return communities
-        .where(
-          (community) =>
-              community.name.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ) ||
-              community.description.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ),
-        )
-        .toList();
+
+    List<CommunitySummary> discoverCommunities = [];
+    List<CommunitySummary> myCommunities = [];
+    String? discoverError;
+    String? myError;
+
+    try {
+      discoverCommunities = await _communitiesService.fetchCommunities();
+    } on CommunitiesException catch (e) {
+      discoverError = e.message;
+    } catch (_) {
+      discoverError = 'Error inesperado al cargar comunidades.';
+    }
+
+    if (userId == null) {
+      myError = 'No se pudo identificar al usuario autenticado.';
+    } else {
+      try {
+        myCommunities = await _communitiesService.fetchUserCommunities(userId);
+      } on CommunitiesException catch (e) {
+        myError = e.message;
+      } catch (_) {
+        myError = 'Error inesperado al cargar tus comunidades.';
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _discoverCommunities = discoverCommunities;
+      _isLoadingDiscover = false;
+      _discoverError = discoverError;
+
+      _myCommunities = myCommunities;
+      _isLoadingMyCommunities = false;
+      _myCommunitiesError = myError;
+    });
   }
 
   @override
@@ -173,7 +155,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
               child: TabBarView(
                 children: [
                   // Contenido de "Mis Comunidades"
-                  _buildCommunityList(_filterCommunities(_myCommunities)),
+                  _buildMyCommunitiesTab(),
                   // Contenido de "Descubrir"
                   _buildDiscoverTab(),
                 ],
@@ -205,94 +187,68 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     );
   }
 
-  // --- Widget Helper para construir la lista de comunidades ---
-  Widget _buildCommunityList(List<Community> communities) {
-    if (communities.isEmpty) {
-      return Center(
-        child: Text(
-          _searchQuery.isEmpty
-              ? 'No hay comunidades aquí.'
-              : 'No se encontraron resultados.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 16),
-        ),
-      );
+  Widget _buildMyCommunitiesTab() {
+    if (_isLoadingMyCommunities) {
+      return const Center(child: CircularProgressIndicator());
     }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      itemCount: communities.length,
-      itemBuilder: (context, index) {
-        final community = communities[index];
-        return _buildCommunityCard(community);
-      },
-    );
-  }
 
-  // --- Widget Helper para el diseño de cada tarjeta de comunidad ---
-  Widget _buildCommunityCard(Community community) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          // TODO: Navegar a la pantalla de detalle de la comunidad
-          print('Viendo detalles de: ${community.name}');
-        },
+    if (_myCommunitiesError != null) {
+      return Center(
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Imagen de la comunidad
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: NetworkImage(community.imageUrl),
+              Text(
+                _myCommunitiesError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.black54),
               ),
-              const SizedBox(width: 16.0),
-              // Información de la comunidad
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          community.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        if (community.isPrivate) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.lock, size: 14, color: Colors.grey[600]),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      community.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${community.memberCount} miembros',
-                      style: TextStyle(
-                        color: auth.kPrimaryColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadCommunities,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: auth.kPrimaryColor,
+                  foregroundColor: Colors.white,
                 ),
+                child: const Text('Reintentar'),
               ),
-              // Icono para unirse
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey),
             ],
           ),
         ),
-      ),
+      );
+    }
+
+    final filtered = _filterCommunitySummaries(_myCommunities);
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.sentiment_dissatisfied,
+              color: auth.kPrimaryColor,
+              size: 48,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _searchQuery.isEmpty
+                  ? 'Por ahora no perteneces a ninguna comunidad.'
+                  : 'No se encontraron comunidades con ese nombre.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        return _buildCommunitySummaryCard(filtered[index]);
+      },
     );
   }
 
@@ -362,9 +318,12 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     }
     return communities
         .where(
-          (community) => community.name.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ),
+          (community) {
+            final query = _searchQuery.toLowerCase();
+            final nameMatch = community.name.toLowerCase().contains(query);
+            final descriptionMatch = community.description?.toLowerCase().contains(query) ?? false;
+            return nameMatch || descriptionMatch;
+          },
         )
         .toList();
   }
@@ -394,7 +353,14 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                 child: CircleAvatar(
                   radius: 30,
                   backgroundColor: auth.kPrimaryColor.withOpacity(0.2),
-                  child: const Icon(Icons.people, color: auth.kPrimaryColor),
+                  backgroundImage: community.imageUrl != null &&
+                          community.imageUrl!.isNotEmpty
+                      ? NetworkImage(community.imageUrl!)
+                      : null,
+                  child: (community.imageUrl != null &&
+                          community.imageUrl!.isNotEmpty)
+                      ? null
+                      : const Icon(Icons.people, color: auth.kPrimaryColor),
                 ),
               ),
               const SizedBox(width: 16.0),
@@ -409,6 +375,16 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                         fontSize: 16,
                       ),
                     ),
+                    if (community.description != null &&
+                        community.description!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        community.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Text(
                       '${community.membersCount} miembros · ${community.eventsCount} eventos',
