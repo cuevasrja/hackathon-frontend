@@ -9,6 +9,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 const Color kPrimaryColor = Color(0xFF4BBAC3);
 const Color kBackgroundColor = Color(0xFFF5F4EF);
 
+class LoginStorageKeys {
+  static const userId = 'userId';
+  static const token = 'authToken';
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,8 +22,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const _userIdKey = 'userId';
-  static const _tokenKey = 'authToken';
   // Clave para manejar el estado del formulario
   final _formKey = GlobalKey<FormState>();
 
@@ -70,8 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_userIdKey, authResponse.user.id);
-      await prefs.setString(_tokenKey, authResponse.token);
+      await prefs.setInt(LoginStorageKeys.userId, authResponse.user.id);
+      await prefs.setString(LoginStorageKeys.token, authResponse.token);
 
       if (!mounted) return;
 

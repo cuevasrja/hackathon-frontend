@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:hackathon_frontend/screens/home/home_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -8,10 +10,28 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late Future<bool> _hasSessionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasSessionFuture = _hasStoredToken();
+  }
+
+  Future<bool> _hasStoredToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken');
+    return token != null && token.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -27,7 +47,19 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF4BBAC3)),
       ),
 
-      home: const HomeScreen(),
+      home: FutureBuilder<bool>(
+        future: _hasSessionFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final hasToken = snapshot.data ?? false;
+          return hasToken ? const HomeScreen() : const LoginScreen();
+        },
+      ),
     );
   }
 }
