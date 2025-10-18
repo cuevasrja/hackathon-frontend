@@ -254,7 +254,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     const List<String> meses = [
       'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
     ];
-    final date = event.timeBegin;
+    final date = event.timeBegin.toLocal();
     String formattedDate = '${date.day} de ${meses[date.month - 1]} - ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
 
     return Card(
