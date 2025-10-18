@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/screens/home_screen.dart';
 
-import 'package:hackathon_frontend/utils/colors.dart';
-
-import 'screens/auth/login.dart'; // Asegúrate de importar tu archivo login.dart
-
 void main() {
   runApp(const MyApp());
 }
@@ -19,13 +15,13 @@ class MyApp extends StatelessWidget {
       title: 'Plancito',
 
       theme: ThemeData(
-        primaryColor: kPrimaryColor,
+        primaryColor: Color(0xFF4BBAC3),
 
-        scaffoldBackgroundColor: kBackgroundColor,
+        scaffoldBackgroundColor: Color(0xFFF5F4EF),
 
         visualDensity: VisualDensity.adaptivePlatformDensity,
 
-        colorScheme: ColorScheme.fromSeed(seedColor: kPrimaryColor),
+        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF4BBAC3)),
       ),
 
       home: const HomeScreen(),
