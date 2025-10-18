@@ -111,10 +111,6 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: kPrimaryColor),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
           title: const Text(
             'Comunidades',
             style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),

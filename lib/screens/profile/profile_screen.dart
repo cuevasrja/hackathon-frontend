@@ -22,10 +22,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: kPrimaryColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
         title: const Text(
           'Perfil',
           style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),

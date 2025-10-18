@@ -83,10 +83,6 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: kPrimaryColor),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
           title: const Text(
             'Mis Planes',
             style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
