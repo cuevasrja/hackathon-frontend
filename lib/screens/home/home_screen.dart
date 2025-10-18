@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/home/favorites_screen.dart';
+import 'package:hackathon_frontend/screens/home/communities_screen.dart';
 import 'package:hackathon_frontend/screens/home/my_diet_screen.dart';
 import 'package:hackathon_frontend/screens/profile/profile_screen.dart';
 import 'package:hackathon_frontend/widgets/home_body.dart';
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // This is the actual home screen content
           HomeBody(),
           MyDietScreen(),
-          FavoritesScreen(),
+          CommunitiesScreen(),
           ProfileScreen(),
         ],
       ),
