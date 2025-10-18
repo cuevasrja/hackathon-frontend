@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/services/auth_service.dart';
@@ -27,14 +26,6 @@ class ProfileService {
 
     http.Response response;
     try {
-      developer.log(
-        'Solicitando perfil de usuario $id a ${uri.toString()}',
-        name: 'ProfileService',
-      );
-      developer.log(
-        'Headers enviados: {Content-Type: application/json, Authorization: Bearer $token}',
-        name: 'ProfileService',
-      );
       response = await http
           .get(
             uri,
@@ -44,16 +35,7 @@ class ProfileService {
             },
           )
           .timeout(const Duration(seconds: 15));
-      developer.log(
-        'Respuesta perfil código ${response.statusCode}: ${response.body}',
-        name: 'ProfileService',
-      );
     } on Exception {
-      developer.log(
-        'Error de red al solicitar perfil de usuario $id',
-        name: 'ProfileService',
-        error: 'network',
-      );
       throw ProfileException('No fue posible conectar con el servidor');
     }
 
@@ -63,14 +45,9 @@ class ProfileService {
     }
 
     if (response.statusCode == 404) {
-      developer.log('Usuario $id no encontrado (404)', name: 'ProfileService');
       throw ProfileException('Usuario no encontrado');
     }
 
-    developer.log(
-      'Error inesperado al solicitar perfil (${response.statusCode})',
-      name: 'ProfileService',
-    );
     throw ProfileException('Error inesperado (${response.statusCode})');
   }
 }
