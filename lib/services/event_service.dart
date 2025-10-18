@@ -214,7 +214,66 @@ class EventService {
     throw EventException(message);
   }
 
-  Future<List<JoinedEvent>> fetchJoinedEvents() async {
+  Future<List<Event>> fetchOrganizedEvents() async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw EventException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw EventException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/users/me/events');
+
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw EventException('No fue posible conectar con el servidor');
+    }
+
+    if (response.statusCode == 200) {
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : [];
+
+      if (decoded is List) {
+        return decoded
+            .whereType<Map<String, dynamic>>()
+            .map(Event.fromJson)
+            .toList();
+      }
+
+      if (decoded is Map<String, dynamic>) {
+        final data = decoded['data'];
+        if (data is List) {
+          return data
+              .whereType<Map<String, dynamic>>()
+              .map(Event.fromJson)
+              .toList();
+        }
+      }
+
+      throw EventException('Respuesta inválida del servidor');
+    }
+
+    if (response.statusCode == 401) {
+      throw EventException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    throw EventException('Error inesperado (${response.statusCode})');
+  }
+
+  Future<List<MyEvent>> fetchJoinedEvents() async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
       throw EventException('API_BASE_URL no está configurado');
@@ -239,6 +298,7 @@ class EventService {
             },
           )
           .timeout(const Duration(seconds: 15));
+
     } on Exception {
       throw EventException('No fue posible conectar con el servidor');
     }
@@ -249,7 +309,7 @@ class EventService {
       if (decoded is List) {
         return decoded
             .whereType<Map<String, dynamic>>()
-            .map(JoinedEvent.fromJson)
+            .map(MyEvent.fromJson)
             .toList();
       }
 
@@ -258,7 +318,7 @@ class EventService {
         if (data is List) {
           return data
               .whereType<Map<String, dynamic>>()
-              .map(JoinedEvent.fromJson)
+              .map(MyEvent.fromJson)
               .toList();
         }
       }
