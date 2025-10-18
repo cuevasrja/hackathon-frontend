@@ -26,6 +26,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   bool _isLoadingMyCommunities = true;
   String? _discoverError;
   String? _myCommunitiesError;
+  int? _currentUserId;
 
   @override
   void initState() {
@@ -89,32 +90,22 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     }
 
     if (userId != null) {
-      final ownerCommunities = discoverCommunities
-          .where(
-            (community) =>
-                community.createdById != null &&
-                community.createdById == userId,
-          )
-          .toList();
+      final Map<int, CommunitySummary> combinedCommunities = {};
 
-      if (ownerCommunities.isNotEmpty) {
-        final existingIds = myCommunities
-            .map((community) => community.id)
-            .toSet();
-        for (final ownerCommunity in ownerCommunities) {
-          if (!existingIds.contains(ownerCommunity.id)) {
-            myCommunities.add(ownerCommunity);
-            existingIds.add(ownerCommunity.id);
-          }
+      for (final community in discoverCommunities) {
+        if (community.createdById == userId) {
+          combinedCommunities[community.id] = community;
         }
       }
-    }
 
-    if (userId != null) {
-      final filteredMyCommunities = myCommunities
+      for (final community in myCommunities) {
+        combinedCommunities.putIfAbsent(community.id, () => community);
+      }
+
+      myCommunities = combinedCommunities.values
           .where((community) => community.createdById == userId)
-          .toList();
-      myCommunities = filteredMyCommunities;
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
     }
 
     if (!mounted) {
@@ -129,6 +120,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
       _myCommunities = myCommunities;
       _isLoadingMyCommunities = false;
       _myCommunitiesError = myError;
+      _currentUserId = userId;
     });
   }
 
@@ -210,6 +202,40 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             }
 
             if (result is CreatedCommunity) {
+              final userId = _currentUserId ??
+                  (await SharedPreferences.getInstance())
+                      .getInt(auth.LoginStorageKeys.userId);
+
+              if (userId != null) {
+                final existsInMy =
+                    _myCommunities.any((community) => community.id == result.id);
+                final existsInDiscover = _discoverCommunities
+                    .any((community) => community.id == result.id);
+
+                if (!existsInMy || !existsInDiscover) {
+                  final newCommunitySummary = CommunitySummary(
+                    id: result.id,
+                    name: result.name,
+                    membersCount: 1,
+                    eventsCount: 0,
+                    requestsCount: 0,
+                    description: null,
+                    imageUrl: null,
+                    isPrivate: false,
+                    createdById: userId,
+                  );
+
+                  setState(() {
+                    if (!existsInMy) {
+                      _myCommunities.insert(0, newCommunitySummary);
+                    }
+                    if (!existsInDiscover) {
+                      _discoverCommunities.insert(0, newCommunitySummary);
+                    }
+                  });
+                }
+              }
+
               await _loadCommunities();
             }
           },
