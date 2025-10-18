@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
@@ -42,10 +41,20 @@ class CommunitySummary {
   final bool? isPrivate;
 }
 
+class CommunityJoinRequestResult {
+  CommunityJoinRequestResult({required this.status, this.message});
+
+  final CommunityJoinRequestStatus status;
+  final String? message;
+}
+
+enum CommunityJoinRequestStatus { success, alreadyRequested }
+
 class CommunitiesService {
   CommunitiesService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
+  String get _baseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
 
   Future<List<CommunitySummary>> fetchCommunities() async {
     final baseUrl = _baseUrl.trim();
@@ -74,11 +83,6 @@ class CommunitiesService {
     } on Exception {
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
-
-    developer.log(
-      'fetchCommunities response -> status ${response.statusCode}, body: ${response.body}',
-      name: 'CommunitiesService',
-    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
@@ -266,6 +270,78 @@ class CommunitiesService {
     }
 
     throw CommunitiesException('Error inesperado (${response.statusCode})');
+  }
+
+  Future<CommunityJoinRequestResult> requestJoinCommunity(
+    int communityId,
+  ) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw CommunitiesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw CommunitiesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/communities/$communityId/requests');
+
+    http.Response response;
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw CommunitiesException('No fue posible conectar con el servidor');
+    }
+
+    if (response.statusCode == 200 ||
+        response.statusCode == 201 ||
+        response.statusCode == 204) {
+      final decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
+      final message = decoded is Map<String, dynamic>
+          ? decoded['message'] as String? ?? 'Solicitud enviada correctamente.'
+          : 'Solicitud enviada correctamente.';
+      return CommunityJoinRequestResult(
+        status: CommunityJoinRequestStatus.success,
+        message: message,
+      );
+    }
+
+    if (response.statusCode == 401) {
+      throw CommunitiesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    if (response.statusCode == 409) {
+      final decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
+      final message = decoded is Map<String, dynamic>
+          ? decoded['message'] as String? ??
+                'Ya cuentas con una solicitud pendiente para esta comunidad.'
+          : 'Ya cuentas con una solicitud pendiente para esta comunidad.';
+      return CommunityJoinRequestResult(
+        status: CommunityJoinRequestStatus.alreadyRequested,
+        message: message,
+      );
+    }
+
+    final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+    final message = decoded is Map<String, dynamic>
+        ? decoded['message'] as String? ??
+              'No fue posible enviar la solicitud de ingreso a la comunidad'
+        : 'No fue posible enviar la solicitud de ingreso a la comunidad';
+    throw CommunitiesException(message);
   }
 }
 

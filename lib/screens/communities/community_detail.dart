@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
@@ -33,6 +31,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
   String _selectedStatus = '';
   String _selectedVisibility = '';
   bool _upcomingOnly = false;
+  bool _isJoinRequesting = false;
+  bool _joinRequestSent = false;
 
   @override
   void initState() {
@@ -80,15 +80,61 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     }
   }
 
+  Future<void> _requestJoinCommunity() async {
+    if (_isJoinRequesting) {
+      return;
+    }
+    setState(() {
+      _isJoinRequesting = true;
+    });
+
+    try {
+      final result =
+          await _communitiesService.requestJoinCommunity(widget.communityId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (result.status == CommunityJoinRequestStatus.success ||
+            result.status == CommunityJoinRequestStatus.alreadyRequested) {
+          _joinRequestSent = true;
+        }
+      });
+      final message = result.message ??
+          (result.status == CommunityJoinRequestStatus.alreadyRequested
+              ? 'Ya cuentas con una solicitud pendiente para esta comunidad.'
+              : 'Solicitud enviada correctamente.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } on CommunitiesException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No fue posible enviar la solicitud.')),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isJoinRequesting = false;
+      });
+    }
+  }
+
   Future<void> _initializeLocaleAndLoadEvents() async {
     try {
       await initializeDateFormatting('es');
-    } catch (_) {
-      developer.log(
-        'initializeDateFormatting fallo, se continuará con configuración por defecto',
-        name: 'CommunityDetailsScreen',
-      );
-    }
+    } catch (_) {}
 
     if (!mounted) {
       return;
@@ -115,10 +161,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         page: 1,
         limit: 20,
       );
-      developer.log(
-        'fetchCommunityEvents <- eventos: ${response.events.length}, pagina: ${response.page}, total: ${response.total}',
-        name: 'CommunityDetailsScreen',
-      );
+
       if (!mounted) {
         return;
       }
@@ -127,10 +170,6 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         _isEventsLoading = false;
       });
     } on EventException catch (e) {
-      developer.log(
-        'fetchCommunityEvents error <- ${e.message}',
-        name: 'CommunityDetailsScreen',
-      );
       if (!mounted) {
         return;
       }
@@ -139,10 +178,6 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         _isEventsLoading = false;
       });
     } catch (_) {
-      developer.log(
-        'fetchCommunityEvents error inesperado',
-        name: 'CommunityDetailsScreen',
-      );
       if (!mounted) {
         return;
       }
@@ -325,11 +360,28 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.group_add, color: Colors.white),
-                  label: const Text(
-                    'Solicitar unirme',
-                    style: TextStyle(
+                  onPressed: (_isJoinRequesting || _joinRequestSent)
+                      ? null
+                      : () => _requestJoinCommunity(),
+                  icon: _isJoinRequesting
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: const AlwaysStoppedAnimation<Color?>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.group_add, color: Colors.white),
+                  label: Text(
+                    _isJoinRequesting
+                        ? 'Enviando solicitud...'
+                        : _joinRequestSent
+                        ? 'Solicitud enviada'
+                        : 'Solicitar unirme',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
