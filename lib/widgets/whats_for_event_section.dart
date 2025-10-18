@@ -25,8 +25,10 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
   }
 
   Future<List<Meal>> _fetchEventMeals() async {
-    final EventResponse response =
-        await _eventService.fetchEvents(page: 1, limit: 20);
+    final EventResponse response = await _eventService.fetchEvents(
+      page: 1,
+      limit: 20,
+    );
     final events = response.events;
 
     if (events.isEmpty) {
@@ -100,6 +102,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
               }
 
               return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 15),
                 scrollDirection: Axis.horizontal,
                 itemCount: meals.length,
                 itemBuilder: (context, index) {
