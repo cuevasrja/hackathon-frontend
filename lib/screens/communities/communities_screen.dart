@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart' as auth; // Para usar las constantes de color
 import 'package:hackathon_frontend/screens/communities/community_detail.dart'
     as detail;
+import 'package:hackathon_frontend/screens/communities/create_community.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
 
 // --- 1. Modelo de Datos para una Comunidad ---
@@ -182,9 +183,20 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
         ),
         // --- Botón para Crear Comunidad ---
         floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            // TODO: Lógica para navegar a una pantalla de creación de comunidad
-            print('Crear nueva comunidad');
+          onPressed: () async {
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const CreateCommunityScreen(),
+              ),
+            );
+
+            if (!mounted) {
+              return;
+            }
+
+            if (result is CreatedCommunity) {
+              await _loadCommunities();
+            }
           },
           backgroundColor: auth.kPrimaryColor,
           child: const Icon(Icons.add, color: Colors.white),

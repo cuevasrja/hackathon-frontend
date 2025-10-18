@@ -127,6 +127,101 @@ class CommunitiesService {
 
     throw CommunitiesException('Error inesperado (${response.statusCode})');
   }
+
+  Future<CommunityCreationResponse> createCommunity(String name) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw CommunitiesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw CommunitiesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/communities');
+
+    http.Response response;
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'name': name.trim()}),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw CommunitiesException('No fue posible conectar con el servidor');
+    }
+
+    final decodedBody = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+
+    if (response.statusCode == 201) {
+      if (decodedBody is! Map<String, dynamic>) {
+        throw CommunitiesException('Respuesta inválida del servidor');
+      }
+      return CommunityCreationResponse.fromJson(decodedBody);
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 422) {
+      final message = decodedBody is Map<String, dynamic>
+          ? decodedBody['message'] as String? ?? 'Datos inválidos'
+          : 'Datos inválidos';
+      throw CommunitiesException(message);
+    }
+
+    if (response.statusCode == 401) {
+      throw CommunitiesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    final errorMessage = decodedBody is Map<String, dynamic>
+        ? decodedBody['message'] as String? ?? 'Error inesperado al crear la comunidad'
+        : 'Error inesperado al crear la comunidad';
+    throw CommunitiesException(errorMessage);
+  }
+}
+
+class CommunityCreationResponse {
+  CommunityCreationResponse({
+    required this.message,
+    required this.community,
+  });
+
+  factory CommunityCreationResponse.fromJson(Map<String, dynamic> json) {
+    final communityJson = json['community'];
+    if (communityJson is! Map<String, dynamic>) {
+      throw CommunitiesException('Respuesta inválida del servidor');
+    }
+
+    return CommunityCreationResponse(
+      message: json['message'] as String? ?? 'Comunidad creada exitosamente',
+      community: CreatedCommunity.fromJson(communityJson),
+    );
+  }
+
+  final String message;
+  final CreatedCommunity community;
+}
+
+class CreatedCommunity {
+  CreatedCommunity({
+    required this.id,
+    required this.name,
+  });
+
+  factory CreatedCommunity.fromJson(Map<String, dynamic> json) {
+    return CreatedCommunity(
+      id: json['id'] as int,
+      name: json['name'] as String? ?? '',
+    );
+  }
+
+  final int id;
+  final String name;
 }
 
 class CommunityDetail {
