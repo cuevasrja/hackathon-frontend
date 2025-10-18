@@ -4,20 +4,22 @@ import 'package:hackathon_frontend/models/meal_model.dart';
 
 class MealCard extends StatelessWidget {
   final Meal meal;
+  final VoidCallback? onTap;
 
-  const MealCard({super.key, required this.meal});
+  const MealCard({super.key, required this.meal, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MealDetailsScreen(meal: meal),
-          ),
-        );
-      },
+      onTap: onTap ??
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MealDetailsScreen(meal: meal),
+              ),
+            );
+          },
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: SizedBox(
@@ -25,12 +27,7 @@ class MealCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Image.asset(
-                meal.imagePath,
-                height: 120,
-                width: 150,
-                fit: BoxFit.cover,
-              ),
+              _MealImage(imagePath: meal.imagePath),
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
@@ -38,15 +35,69 @@ class MealCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       meal.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text(meal.description),
+                    const SizedBox(height: 4),
+                    Text(
+                      meal.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MealImage extends StatelessWidget {
+  const _MealImage({required this.imagePath});
+
+  final String imagePath;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imagePath.isEmpty) {
+      return _placeholder();
+    }
+
+    final isNetworkImage = imagePath.startsWith('http');
+
+    if (isNetworkImage) {
+      return Image.network(
+        imagePath,
+        height: 120,
+        width: 150,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      height: 120,
+      width: 150,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _placeholder(),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      height: 120,
+      width: 150,
+      color: Colors.grey[200],
+      child: const Icon(
+        Icons.event_outlined,
+        size: 40,
+        color: Colors.grey,
       ),
     );
   }
