@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/widgets/weekly_calendar.dart';
 
-class ManageYourMealsSection extends StatelessWidget {
-  const ManageYourMealsSection({super.key});
+class ManageYourEventsSection extends StatelessWidget {
+  const ManageYourEventsSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class ManageYourMealsSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                'Manage your meals',
+                'Administra tus eventos',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const Icon(Icons.arrow_forward_ios),

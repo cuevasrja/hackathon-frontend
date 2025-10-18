@@ -25,7 +25,7 @@ class _GettingStartedCardState extends State<GettingStartedCard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   Text(
-                    'Getting started',
+                    'Empezar',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   IconButton(
@@ -38,7 +38,7 @@ class _GettingStartedCardState extends State<GettingStartedCard> {
                   ),
                 ],
               ),
-              const Text('Welcome to your new account! Let us show you around.'),
+              const Text('¡Bienvenido a tu nueva cuenta! Te mostraremos los alrededores.'),
             ],
           ),
         ),
