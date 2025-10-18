@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register.dart';
 import 'forgot_password.dart';
+import '../home/home_screen.dart';
 
 // Definimos tus colores principales para usarlos fácilmente
 const Color kPrimaryColor = Color(0xFF4BBAC3);
@@ -58,6 +59,10 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text('Iniciando sesión...'),
           backgroundColor: kPrimaryColor,
         ),
+      );
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     }
   }

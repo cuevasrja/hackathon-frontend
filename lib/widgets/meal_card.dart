@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/meal_details_screen.dart';
+import 'package:hackathon_frontend/screens/home/meal_details_screen.dart';
 import 'package:hackathon_frontend/models/meal_model.dart';
 
 class MealCard extends StatelessWidget {

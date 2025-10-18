@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/calendar_screen.dart';
+import 'package:hackathon_frontend/screens/home/calendar_screen.dart';
 import 'package:hackathon_frontend/widgets/daily_meal_plan.dart';
 
 class MyDietScreen extends StatelessWidget {
