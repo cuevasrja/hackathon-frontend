@@ -17,13 +17,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   static const _userIdKey = 'userId';
-  // Datos de usuario de ejemplo (en un app real vendrían de un estado o API)
-  String _userFirstName = 'John';
-  String _userLastName = 'Doe';
-  String _userName = 'John Doe';
-  String _userEmail = 'john.doe@example.com';
-  String _profileImageUrl =
-      'https://via.placeholder.com/150/4BBAC3/FFFFFF?text=JD'; // Placeholder
+  // Datos del usuario (se rellenan desde la API)
+  String _userFirstName = '';
+  String _userLastName = '';
+  String _userName = '';
+  String _userEmail = '';
+  String _profileImageUrl = '';
   String _userMembership = '';
   String _userCity = '';
   int? _userId;
@@ -60,14 +59,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
 
-      final fullName = '${user.name} ${user.lastName}'.trim();
+      final fetchedFirstName = user.name.trim();
+      final fetchedLastName = user.lastName.trim();
+      final fullName = '${fetchedFirstName} ${fetchedLastName}'.trim();
 
       setState(() {
-        _userFirstName = user.name;
-        _userLastName = user.lastName;
+        _userFirstName = fetchedFirstName;
+        _userLastName = fetchedLastName;
         _userName = fullName.isNotEmpty ? fullName : user.email;
         _userEmail = user.email;
-        _profileImageUrl = '';
         _userMembership = user.membership;
         _userCity = user.city;
         _userId = user.id;
@@ -204,12 +204,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onPressed: _userId == null
                                 ? null
                                 : () async {
+                                    final nameParts = _userName.trim().isEmpty
+                                        ? <String>[]
+                                        : _userName.trim().split(RegExp(r'\s+'));
+                                    final fallbackFirstName =
+                                        _userFirstName.isNotEmpty
+                                            ? _userFirstName
+                                            : (nameParts.isNotEmpty &&
+                                                    !_userName.contains('@')
+                                                ? nameParts.first
+                                                : '');
+                                    final fallbackLastName =
+                                        _userLastName.isNotEmpty
+                                            ? _userLastName
+                                            : (nameParts.length > 1 &&
+                                                    !_userName.contains('@')
+                                                ? nameParts
+                                                    .sublist(1)
+                                                    .join(' ')
+                                                    .trim()
+                                                : '');
+
                                     final updated = await Navigator.push<bool>(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => EditProfileScreen(
-                                          currentName: _userFirstName,
-                                          currentLastName: _userLastName,
+                                          currentName: fallbackFirstName,
+                                          currentLastName: fallbackLastName,
                                           currentUserEmail: _userEmail,
                                           currentProfileImageUrl:
                                               _profileImageUrl,
