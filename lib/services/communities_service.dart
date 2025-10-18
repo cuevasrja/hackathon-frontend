@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
@@ -73,6 +74,11 @@ class CommunitiesService {
     } on Exception {
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
+
+    developer.log(
+      'fetchCommunities response -> status ${response.statusCode}, body: ${response.body}',
+      name: 'CommunitiesService',
+    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
