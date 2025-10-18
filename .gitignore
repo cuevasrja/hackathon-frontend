@@ -62,10 +62,11 @@ linux/flutter/generated_plugin_registrant.h
 linux/flutter/generated_plugins.cmake
 # macOS
 macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/Generated*
 # iOS
 ios/Runner/GeneratedPluginRegistrant.h
 ios/Runner/GeneratedPluginRegistrant.m
 # Android
 android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
-# Flutter generated plugin registrants and gen
+pubspec.lock
