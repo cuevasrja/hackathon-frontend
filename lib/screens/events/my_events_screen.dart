@@ -5,6 +5,7 @@ import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login.dart'; // Para usar las constantes de color
 import 'create_events.dart';
+import 'event_detail.dart';
 
 // --- 2. Pantalla Principal "Mis Eventos" ---
 class MyEventsScreen extends StatefulWidget {
@@ -337,8 +338,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       clipBehavior: Clip.antiAlias, // Para que la imagen respete los bordes
       child: InkWell(
         onTap: () {
-          // TODO: Navegar a la pantalla de detalle del plan
-          print('Viendo detalles de: ${event.name}');
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => EventDetailsScreen(event: event),
+            ),
+          );
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

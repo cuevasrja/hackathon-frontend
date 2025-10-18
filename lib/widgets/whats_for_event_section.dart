@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/models/meal_model.dart';
+import 'package:hackathon_frontend/screens/events/event_detail.dart';
 import 'package:hackathon_frontend/services/event_service.dart';
 import 'package:hackathon_frontend/widgets/meal_card.dart';
 
@@ -15,6 +16,7 @@ class WhatsForEventSection extends StatefulWidget {
 class _WhatsForEventSectionState extends State<WhatsForEventSection> {
   late Future<List<Meal>> _eventMealsFuture;
   final EventService _eventService = EventService();
+  List<Event> _events = [];
 
   @override
   void initState() {
@@ -28,7 +30,14 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
     final events = response.events;
 
     if (events.isEmpty) {
+      if (mounted) {
+        setState(() => _events = []);
+      }
       return const [];
+    }
+
+    if (mounted) {
+      setState(() => _events = events);
     }
 
     return events.map(_mapEventToMeal).toList();
@@ -94,10 +103,16 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
                 scrollDirection: Axis.horizontal,
                 itemCount: meals.length,
                 itemBuilder: (context, index) {
+                  final event = index < _events.length ? _events[index] : null;
                   return MealCard(
                     meal: meals[index],
                     onTap: () {
-                      // TODO: Navegar a detalles del evento cuando esté disponible.
+                      if (event == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EventDetailsScreen(event: event),
+                        ),
+                      );
                     },
                   );
                 },
