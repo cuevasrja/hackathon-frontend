@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
 import 'package:hackathon_frontend/services/event_service.dart';
+import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const Color kPrimaryColor = Color(0xFF4BBAC3);
 const Color kBackgroundColor = Color(0xFFF5F4EF);
@@ -15,6 +17,185 @@ class CommunityDetailsScreen extends StatefulWidget {
 
   @override
   State<CommunityDetailsScreen> createState() => _CommunityDetailsScreenState();
+}
+
+class CommunityRequestsScreen extends StatefulWidget {
+  const CommunityRequestsScreen({
+    super.key,
+    required this.communityId,
+    required this.communityName,
+    required this.service,
+  });
+
+  final int communityId;
+  final String communityName;
+  final CommunitiesService service;
+
+  @override
+  State<CommunityRequestsScreen> createState() => _CommunityRequestsScreenState();
+}
+
+class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
+  List<CommunityJoinRequest> _requests = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final requests = await widget.service
+          .fetchCommunityJoinRequests(widget.communityId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _requests = requests;
+        _isLoading = false;
+      });
+    } on CommunitiesException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = e.message;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = 'No fue posible cargar las solicitudes.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Solicitudes · ${widget.communityName}'),
+        backgroundColor: kPrimaryColor,
+        foregroundColor: Colors.white,
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadRequests,
+        color: kPrimaryColor,
+        child: _buildContent(),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return ListView(
+        children: const [
+          SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      );
+    }
+
+    if (_errorMessage != null) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            _errorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadRequests,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reintentar'),
+          ),
+        ],
+      );
+    }
+
+    if (_requests.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SizedBox(
+            height: 200,
+            child: Center(
+              child: Text('No hay solicitudes pendientes para esta comunidad.'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final formatter = DateFormat('d MMM yyyy · HH:mm', 'es');
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _requests.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final request = _requests[index];
+        final name = request.userName?.isNotEmpty == true
+            ? request.userName!
+            : 'Usuario sin nombre';
+        final email = request.userEmail;
+        final createdAt = request.createdAt != null
+            ? formatter.format(request.createdAt!.toLocal())
+            : null;
+
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 1,
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: kPrimaryColor.withOpacity(0.2),
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(color: kPrimaryColor),
+              ),
+            ),
+            title: Text(name),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (email != null && email.isNotEmpty) Text(email),
+                if (createdAt != null)
+                  Text(
+                    createdAt,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                if (request.status != null && request.status!.isNotEmpty)
+                  Text(
+                    'Estado: ${request.status}',
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
@@ -33,6 +214,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
   bool _upcomingOnly = false;
   bool _isJoinRequesting = false;
   bool _joinRequestSent = false;
+  bool _isOwner = false;
 
   @override
   void initState() {
@@ -54,12 +236,21 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
       final community = await _communitiesService.fetchCommunityDetail(
         widget.communityId,
       );
+      int? userId;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        userId = prefs.getInt(LoginStorageKeys.userId);
+      } catch (_) {
+        userId = null;
+      }
       if (!mounted) {
         return;
       }
       setState(() {
         _community = community;
         _isLoading = false;
+        _isOwner = userId != null && community.ownerId != null &&
+            community.ownerId == userId;
       });
     } on CommunitiesException catch (e) {
       if (!mounted) {
@@ -78,6 +269,22 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _openRequests() async {
+    final community = _community;
+    if (community == null) {
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CommunityRequestsScreen(
+          communityId: community.id,
+          communityName: community.name,
+          service: _communitiesService,
+        ),
+      ),
+    );
   }
 
   Future<void> _requestJoinCommunity() async {
@@ -360,9 +567,11 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: (_isJoinRequesting || _joinRequestSent)
-                      ? null
-                      : () => _requestJoinCommunity(),
+                  onPressed: _isOwner
+                      ? _openRequests
+                      : (_isJoinRequesting || _joinRequestSent)
+                          ? null
+                          : () => _requestJoinCommunity(),
                   icon: _isJoinRequesting
                       ? SizedBox(
                           width: 20,
@@ -374,13 +583,18 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                             ),
                           ),
                         )
-                      : const Icon(Icons.group_add, color: Colors.white),
+                      : Icon(
+                          _isOwner ? Icons.mail_outline : Icons.group_add,
+                          color: Colors.white,
+                        ),
                   label: Text(
-                    _isJoinRequesting
-                        ? 'Enviando solicitud...'
-                        : _joinRequestSent
-                        ? 'Solicitud enviada'
-                        : 'Solicitar unirme',
+                    _isOwner
+                        ? 'Ver solicitudes'
+                        : _isJoinRequesting
+                            ? 'Enviando solicitud...'
+                            : _joinRequestSent
+                                ? 'Solicitud enviada'
+                                : 'Solicitar unirme',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

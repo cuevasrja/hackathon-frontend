@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
@@ -49,6 +50,39 @@ class CommunityJoinRequestResult {
 }
 
 enum CommunityJoinRequestStatus { success, alreadyRequested }
+
+class CommunityJoinRequest {
+  CommunityJoinRequest({
+    required this.id,
+    this.status,
+    this.createdAt,
+    this.userName,
+    this.userEmail,
+  });
+
+  factory CommunityJoinRequest.fromJson(Map<String, dynamic> json) {
+    final userJson = json['user'];
+    return CommunityJoinRequest(
+      id: json['id'] as int? ?? 0,
+      status: json['status'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
+          : null,
+      userName: userJson is Map<String, dynamic>
+          ? userJson['name'] as String?
+          : json['userName'] as String?,
+      userEmail: userJson is Map<String, dynamic>
+          ? userJson['email'] as String?
+          : json['userEmail'] as String?,
+    );
+  }
+
+  final int id;
+  final String? status;
+  final DateTime? createdAt;
+  final String? userName;
+  final String? userEmail;
+}
 
 class CommunitiesService {
   CommunitiesService();
@@ -272,6 +306,80 @@ class CommunitiesService {
     throw CommunitiesException('Error inesperado (${response.statusCode})');
   }
 
+  Future<List<CommunityJoinRequest>> fetchCommunityJoinRequests(
+    int communityId,
+  ) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw CommunitiesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw CommunitiesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/communities/$communityId/requests');
+
+    http.Response response;
+    try {
+      developer.log(
+        'fetchCommunityJoinRequests -> GET $uri',
+        name: 'CommunitiesService',
+      );
+      response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw CommunitiesException('No fue posible conectar con el servidor');
+    }
+
+    developer.log(
+      'fetchCommunityJoinRequests <- status: ${response.statusCode}, body: ${response.body}',
+      name: 'CommunitiesService',
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : [];
+
+      if (decoded is List) {
+        return decoded
+            .whereType<Map<String, dynamic>>()
+            .map(CommunityJoinRequest.fromJson)
+            .toList();
+      }
+
+      if (decoded is Map<String, dynamic>) {
+        final data = decoded['data'];
+        if (data is List) {
+          return data
+              .whereType<Map<String, dynamic>>()
+              .map(CommunityJoinRequest.fromJson)
+              .toList();
+        }
+      }
+
+      throw CommunitiesException('Respuesta inválida del servidor');
+    }
+
+    if (response.statusCode == 401) {
+      throw CommunitiesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    if (response.statusCode == 404) {
+      throw CommunitiesException('Comunidad no encontrada');
+    }
+
+    throw CommunitiesException('Error inesperado (${response.statusCode})');
+  }
+
   Future<CommunityJoinRequestResult> requestJoinCommunity(
     int communityId,
   ) async {
@@ -386,6 +494,7 @@ class CommunityDetail {
     required this.membersCount,
     required this.eventsCount,
     required this.requestsCount,
+    this.ownerId,
     this.imageUrl,
     this.members,
     this.events,
@@ -393,6 +502,29 @@ class CommunityDetail {
 
   factory CommunityDetail.fromJson(Map<String, dynamic> json) {
     final counts = json['_count'] as Map<String, dynamic>?;
+    int? ownerId;
+    final rawOwnerId = json['ownerId'];
+    if (rawOwnerId is int) {
+      ownerId = rawOwnerId;
+    } else if (rawOwnerId is num) {
+      ownerId = rawOwnerId.toInt();
+    } else if (rawOwnerId is String) {
+      ownerId = int.tryParse(rawOwnerId);
+    }
+
+    if (ownerId == null) {
+      final ownerJson = json['owner'];
+      if (ownerJson is Map<String, dynamic>) {
+        final ownerJsonId = ownerJson['id'] ?? ownerJson['userId'];
+        if (ownerJsonId is int) {
+          ownerId = ownerJsonId;
+        } else if (ownerJsonId is num) {
+          ownerId = ownerJsonId.toInt();
+        } else if (ownerJsonId is String) {
+          ownerId = int.tryParse(ownerJsonId);
+        }
+      }
+    }
     return CommunityDetail(
       id: json['id'] as int,
       name: json['name'] as String? ?? '',
@@ -400,6 +532,7 @@ class CommunityDetail {
       membersCount: counts?['members'] as int? ?? 0,
       eventsCount: counts?['events'] as int? ?? 0,
       requestsCount: counts?['requests'] as int? ?? 0,
+      ownerId: ownerId,
       imageUrl: json['imageUrl'] as String?,
       members: json['members'] as List<dynamic>?,
       events: json['events'] as List<dynamic>?,
@@ -412,6 +545,7 @@ class CommunityDetail {
   final int membersCount;
   final int eventsCount;
   final int requestsCount;
+  final int? ownerId;
   final String? imageUrl;
   final List<dynamic>? members;
   final List<dynamic>? events;
