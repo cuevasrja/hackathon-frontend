@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EventDetailsScreen extends StatelessWidget {
   const EventDetailsScreen({super.key, required this.event});
@@ -73,6 +74,88 @@ class EventDetailsScreen extends StatelessWidget {
             _InfoRow(
               icon: Icons.location_on_outlined,
               label: place?.direction ?? place?.name ?? 'Sin ubicación',
+              trailing: TextButton.icon(
+                onPressed: () async {
+                  // 1. Define el esquema de URL para la app
+                  // (Este es un esquema común, podría ser 'yummy://' o 'yummyrides://')
+                  final platform = Theme.of(context).platform;
+
+                  // 2. Define las URL de fallback (la tienda de apps)
+                  final String storeUrl;
+                  if (platform == TargetPlatform.android) {
+                    // ID del paquete de Yummy Rides en Google Play
+                    storeUrl =
+                        'https://play.google.com/store/apps/details?id=com.yummyrides';
+                  } else if (platform == TargetPlatform.iOS) {
+                    // ID de la app en la App Store
+                    storeUrl = 'https://apps.apple.com/app/id1522818234';
+                  } else {
+                    // Fallback genérico para otras plataformas (web, etc.)
+                    storeUrl = 'https://www.yummysuperapp.com/rides';
+                  }
+                  final fallbackUri = Uri.parse(storeUrl);
+
+                  // 3. Intenta abrir la app
+                  try {
+                    bool opened = false;
+
+                    if (platform == TargetPlatform.android) {
+                      final appUri = Uri.parse('yummyrides://rides');
+                      opened = await launchUrl(
+                        appUri,
+                        mode: LaunchMode.externalNonBrowserApplication,
+                      );
+
+                      if (!opened) {
+                        final intentUri = Uri.parse(
+                          'intent://rides#Intent;scheme=yummyrides;package=com.yummyrides;end',
+                        );
+                        opened = await launchUrl(
+                          intentUri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      }
+                    } else if (platform == TargetPlatform.iOS) {
+                      final appUri = Uri.parse('yummyrides://rides');
+                      opened = await launchUrl(
+                        appUri,
+                        mode: LaunchMode.externalNonBrowserApplication,
+                      );
+                    }
+
+                    if (!opened) {
+                      opened = await launchUrl(
+                        fallbackUri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+
+                    if (!opened && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo abrir el enlace'),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    // Si hay una excepción (raro, pero posible), lanza el fallback
+                    final opened = await launchUrl(
+                      fallbackUri,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!opened && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo abrir el enlace'),
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: TextButton.styleFrom(foregroundColor: kPrimaryColor),
+                icon: const Icon(Icons.directions_car_outlined, size: 18),
+                label: const Text('Cómo llegar'),
+              ),
             ),
             const SizedBox(height: 20),
             if (organizer != null)
@@ -155,10 +238,11 @@ class EventDetailsScreen extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label});
+  const _InfoRow({required this.icon, required this.label, this.trailing});
 
   final IconData icon;
   final String label;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +251,7 @@ class _InfoRow extends StatelessWidget {
         Icon(icon, color: kPrimaryColor, size: 22),
         const SizedBox(width: 12),
         Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
+        if (trailing != null) ...[const SizedBox(width: 12), trailing!],
       ],
     );
   }
