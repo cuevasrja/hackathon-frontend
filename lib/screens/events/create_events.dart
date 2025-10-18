@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../auth/login.dart'; // Para usar las constantes de color
 import 'package:hackathon_frontend/services/event_service.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
+import 'package:hackathon_frontend/services/places_service.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -32,6 +33,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   List<CommunitySummary> _communities = [];
   int? _selectedCommunityId;
+  List<PlaceSummary> _places = [];
+  int? _selectedPlaceId;
+  bool _loadingPlaces = true;
 
   final List<String> _categories = [
     'Gastronomía',
@@ -53,6 +57,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _minAgeController = TextEditingController();
     _externalUrlController = TextEditingController();
     _loadCommunities();
+    _loadPlaces();
   }
 
   @override
@@ -103,13 +108,42 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     } catch (_) {}
   }
 
+  Future<void> _loadPlaces() async {
+    try {
+      setState(() {
+        _loadingPlaces = true;
+      });
+      final response = await PlacesService().fetchPlaces(limit: 50);
+      if (!mounted) return;
+      setState(() {
+        _places = response.places;
+        if (_places.isNotEmpty) {
+          _selectedPlaceId = _selectedPlaceId ?? _places.first.id;
+          _locationController.text = _places
+              .firstWhere(
+                (place) => place.id == _selectedPlaceId,
+                orElse: () => _places.first,
+              )
+              .direction;
+        } else {
+          _selectedPlaceId = null;
+          _locationController.text = '';
+        }
+        _loadingPlaces = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPlaces = false;
+      });
+    }
+  }
+
   Future<void> _createPlan() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecciona una fecha y hora'),
-        ),
+        const SnackBar(content: Text('Por favor, selecciona una fecha y hora')),
       );
       return;
     }
@@ -119,6 +153,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         const SnackBar(
           content: Text('Selecciona una comunidad para planes públicos'),
         ),
+      );
+      return;
+    }
+
+    if (_selectedPlaceId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona un lugar para el evento')),
       );
       return;
     }
@@ -137,7 +178,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         description: _descriptionController.text.trim(),
         timeBegin: _selectedDate!,
         timeEnd: null,
-        placeId: null,
+        placeId: _selectedPlaceId!,
         minAge: minAge,
         status: null,
         visibility: _isPrivate ? 'PRIVATE' : 'PUBLIC',
@@ -154,12 +195,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           backgroundColor: kPrimaryColor,
         ),
       );
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (!mounted) return;
       setState(() {
@@ -336,10 +377,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   icon: Icons.groups_outlined,
                 ),
                 items: _communities
-                    .map((c) => DropdownMenuItem<int>(
-                          value: c.id,
-                          child: Text(c.name),
-                        ))
+                    .map(
+                      (c) => DropdownMenuItem<int>(
+                        value: c.id,
+                        child: Text(c.name),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) {
                   setState(() {
@@ -353,6 +396,54 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              if (_loadingPlaces)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+                )
+              else if (_places.isEmpty)
+                InputDecorator(
+                  decoration: _buildInputDecoration(
+                    hintText: 'Lugar del evento',
+                    icon: Icons.place_outlined,
+                  ),
+                  child: const Text(
+                    'No hay lugares disponibles',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                )
+              else
+                DropdownButtonFormField<int>(
+                  value: _selectedPlaceId,
+                  decoration: _buildInputDecoration(
+                    hintText: 'Lugar del evento',
+                    icon: Icons.place_outlined,
+                  ),
+                  items: _places
+                      .map(
+                        (p) => DropdownMenuItem<int>(
+                          value: p.id,
+                          child: Text(p.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedPlaceId = v;
+                      final matchingPlace = _places.firstWhere(
+                        (place) => place.id == v,
+                        orElse: () => _places.first,
+                      );
+                      _locationController.text = matchingPlace.direction;
+                    });
+                  },
+                  validator: (value) =>
+                      value == null ? 'Selecciona un lugar' : null,
+                ),
               const SizedBox(height: 16),
 
               // --- Ubicación y Participantes (en una fila) ---
@@ -450,12 +541,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           width: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.4,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
                           'CREAR PLANCITO',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),

@@ -43,6 +43,11 @@ class Event {
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
+    final placeJson = json['place'];
+    final organizerJson = json['organizer'];
+    final communityJson = json['community'];
+    final countJson = json['_count'];
+
     return Event(
       id: json['id'] as int,
       name: json['name'] as String,
@@ -57,10 +62,10 @@ class Event {
       visibility: json['visibility'] as String? ?? 'PRIVATE',
       createdAt: DateTime.parse(json['createdAt'] as String),
       externalUrl: json['externalUrl'] as String?,
-      place: Place.fromJson(json['place'] as Map<String, dynamic>),
-      organizer: User.fromJson(json['organizer'] as Map<String, dynamic>),
-      community: json['community'] != null ? Community.fromJson(json['community'] as Map<String, dynamic>) : null,
-      ticketCount: TicketCount.fromJson(json['_count'] as Map<String, dynamic>),
+      place: placeJson is Map<String, dynamic> ? Place.fromJson(placeJson) : null,
+      organizer: organizerJson is Map<String, dynamic> ? User.fromJson(organizerJson) : null,
+      community: communityJson is Map<String, dynamic> ? Community.fromJson(communityJson) : null,
+      ticketCount: countJson is Map<String, dynamic> ? TicketCount.fromJson(countJson) : null,
     );
   }
 }

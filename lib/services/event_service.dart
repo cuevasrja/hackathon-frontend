@@ -11,7 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class EventService {
   EventService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
+  String get _baseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'https://hackathon-back-theta.vercel.app';
 
   Future<EventResponse> fetchEvents({int page = 1, int limit = 10}) async {
     final baseUrl = _baseUrl.trim();
@@ -83,7 +84,7 @@ class EventService {
     required String description,
     required DateTime timeBegin,
     DateTime? timeEnd,
-    int? placeId,
+    required int placeId,
     int? minAge,
     String? status,
     required String visibility,
@@ -104,8 +105,19 @@ class EventService {
     if (token == null || token.isEmpty) {
       throw EventException('Token de autenticación no disponible');
     }
+    developer.log('createEvent -> token=$token', name: 'EventService');
+
+    final organizerId = prefs.getInt(LoginStorageKeys.userId);
+    if (organizerId == null) {
+      throw EventException('Información del usuario no disponible');
+    }
 
     final uri = Uri.parse('$baseUrl/api/events');
+
+    developer.log(
+      'createEvent -> params name=$name visibility=$visibility communityId=$communityId placeId=$placeId minAge=$minAge organizerId=$organizerId externalUrl=$externalUrl',
+      name: 'EventService',
+    );
 
     final payload = <String, dynamic>{
       'name': name.trim(),
@@ -113,11 +125,9 @@ class EventService {
       'timeBegin': timeBegin.toUtc().toIso8601String(),
       'timeEnd': (timeEnd ?? timeBegin).toUtc().toIso8601String(),
       'visibility': visibility,
+      'placeId': placeId,
+      'organizerId': organizerId,
     };
-
-    if (placeId != null) {
-      payload['placeId'] = placeId;
-    }
 
     if (minAge != null) {
       payload['minAge'] = minAge;
@@ -152,7 +162,11 @@ class EventService {
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 15));
-    } on Exception {
+    } on Exception catch (error) {
+      developer.log(
+        'createEvent -> error al ejecutar POST: $error',
+        name: 'EventService',
+      );
       throw EventException('No fue posible conectar con el servidor');
     }
 
@@ -161,12 +175,18 @@ class EventService {
       name: 'EventService',
     );
 
-    final decodedBody = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+    final decodedBody = response.body.isNotEmpty
+        ? jsonDecode(response.body)
+        : null;
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       if (decodedBody is Map<String, dynamic>) {
         final eventData = decodedBody['event'] ?? decodedBody;
         if (eventData is Map<String, dynamic>) {
+          developer.log(
+            'createEvent <- evento creado: ${jsonEncode(eventData)}',
+            name: 'EventService',
+          );
           return Event.fromJson(eventData);
         }
       }
@@ -187,6 +207,10 @@ class EventService {
     final message = decodedBody is Map<String, dynamic>
         ? decodedBody['message'] as String? ?? 'No fue posible crear el evento'
         : 'No fue posible crear el evento';
+    developer.log(
+      'createEvent -> error ${response.statusCode}: $message',
+      name: 'EventService',
+    );
     throw EventException(message);
   }
 

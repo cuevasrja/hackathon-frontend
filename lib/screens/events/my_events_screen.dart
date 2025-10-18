@@ -206,12 +206,15 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
           child: _buildBody(),
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.of(context).push(
+          onPressed: () async {
+            final created = await Navigator.of(context).push<bool>(
               MaterialPageRoute(
                 builder: (context) => const CreateEventScreen(),
               ),
             );
+            if (created == true) {
+              await _loadEvents(reset: true);
+            }
           },
           backgroundColor: kPrimaryColor,
           child: const Icon(Icons.add, color: Colors.white),
@@ -343,7 +346,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             // --- Imagen del Plan ---
             Hero(
               // Para una animación bonita al abrir el detalle
-              tag: event.name, // Un tag único, como el ID del plan
+              tag: 'event-hero-${event.id}',
               child: Image.network(
                 // Intentar usar la imagen del lugar, luego la URL externa, luego un placeholder
                 event.place?.image ?? event.externalUrl ?? 'https://via.placeholder.com/300x150/CCCCCC/FFFFFF?text=No+Image',
