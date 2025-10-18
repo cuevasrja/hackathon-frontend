@@ -15,20 +15,20 @@ class BottomNavigation extends StatelessWidget {
     return BottomNavigationBar(
       items: const <BottomNavigationBarItem>[
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
+          icon: Icon(Icons.dashboard_outlined),
+          label: 'Inicio',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.restaurant_menu),
-          label: 'My Diet',
+          icon: Icon(Icons.event_note_outlined),
+          label: 'Mis eventos',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.favorite),
-          label: 'Favourite',
+          icon: Icon(Icons.groups_outlined),
+          label: 'Comunidades',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profile',
+          icon: Icon(Icons.person_outline),
+          label: 'Perfil',
         ),
       ],
       currentIndex: selectedIndex,
