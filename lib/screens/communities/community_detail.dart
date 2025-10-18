@@ -34,7 +34,8 @@ class CommunityRequestsScreen extends StatefulWidget {
   final CommunitiesService service;
 
   @override
-  State<CommunityRequestsScreen> createState() => _CommunityRequestsScreenState();
+  State<CommunityRequestsScreen> createState() =>
+      _CommunityRequestsScreenState();
 }
 
 class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
@@ -55,8 +56,9 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
     });
 
     try {
-      final requests = await widget.service
-          .fetchCommunityJoinRequests(widget.communityId);
+      final requests = await widget.service.fetchCommunityJoinRequests(
+        widget.communityId,
+      );
       if (!mounted) {
         return;
       }
@@ -155,9 +157,13 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final request = _requests[index];
-        final name = request.userName?.isNotEmpty == true
-            ? request.userName!
-            : 'Usuario sin nombre';
+        final normalizedName = request.userName?.trim();
+        final normalizedEmail = request.userEmail?.trim();
+        final name = (normalizedName != null && normalizedName.isNotEmpty)
+            ? normalizedName
+            : (normalizedEmail != null && normalizedEmail.isNotEmpty)
+            ? normalizedEmail
+            : 'Solicitante #${request.id}';
         final email = request.userEmail;
         final createdAt = request.createdAt != null
             ? formatter.format(request.createdAt!.toLocal())
@@ -172,7 +178,7 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
             leading: CircleAvatar(
               backgroundColor: kPrimaryColor.withOpacity(0.2),
               child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?',
                 style: const TextStyle(color: kPrimaryColor),
               ),
             ),
@@ -249,7 +255,9 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         return;
       }
       final isOwner =
-          userId != null && community.createdById != null && community.createdById == userId;
+          userId != null &&
+          community.createdById != null &&
+          community.createdById == userId;
       developer.log(
         'fetchCommunity -> userId=$userId createdById=${community.createdById} isOwner=$isOwner',
         name: 'CommunityDetailsScreen',
@@ -303,8 +311,9 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     });
 
     try {
-      final result =
-          await _communitiesService.requestJoinCommunity(widget.communityId);
+      final result = await _communitiesService.requestJoinCommunity(
+        widget.communityId,
+      );
       if (!mounted) {
         return;
       }
@@ -314,13 +323,14 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
           _joinRequestSent = true;
         }
       });
-      final message = result.message ??
+      final message =
+          result.message ??
           (result.status == CommunityJoinRequestStatus.alreadyRequested
               ? 'Ya cuentas con una solicitud pendiente para esta comunidad.'
               : 'Solicitud enviada correctamente.');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } on CommunitiesException catch (e) {
       if (!mounted) {
         return;
@@ -577,8 +587,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                   onPressed: _isOwner
                       ? _openRequests
                       : (_isJoinRequesting || _joinRequestSent)
-                          ? null
-                          : () => _requestJoinCommunity(),
+                      ? null
+                      : () => _requestJoinCommunity(),
                   icon: _isJoinRequesting
                       ? SizedBox(
                           width: 20,
@@ -598,10 +608,10 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                     _isOwner
                         ? 'Ver solicitudes'
                         : _isJoinRequesting
-                            ? 'Enviando solicitud...'
-                            : _joinRequestSent
-                                ? 'Solicitud enviada'
-                                : 'Solicitar unirme',
+                        ? 'Enviando solicitud...'
+                        : _joinRequestSent
+                        ? 'Solicitud enviada'
+                        : 'Solicitar unirme',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

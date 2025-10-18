@@ -96,19 +96,26 @@ class CommunityJoinRequest {
   });
 
   factory CommunityJoinRequest.fromJson(Map<String, dynamic> json) {
-    final userJson = json['user'];
+    final fromJsonRaw = json['from'] ?? json['user'];
+    String? userName;
+    String? userEmail;
+
+    if (fromJsonRaw is Map<String, dynamic>) {
+      userName = _parseUserName(fromJsonRaw);
+      userEmail = _parseUserEmail(fromJsonRaw);
+    } else {
+      userName = json['userName'] as String?;
+      userEmail = json['userEmail'] as String?;
+    }
+
     return CommunityJoinRequest(
       id: json['id'] as int? ?? 0,
       status: json['status'] as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
-      userName: userJson is Map<String, dynamic>
-          ? userJson['name'] as String?
-          : json['userName'] as String?,
-      userEmail: userJson is Map<String, dynamic>
-          ? userJson['email'] as String?
-          : json['userEmail'] as String?,
+      userName: userName,
+      userEmail: userEmail,
     );
   }
 
@@ -117,6 +124,46 @@ class CommunityJoinRequest {
   final DateTime? createdAt;
   final String? userName;
   final String? userEmail;
+
+  static String? _parseUserName(Map<String, dynamic> userJson) {
+    final firstName = userJson['name'];
+    final lastName = userJson['lastName'];
+    if (firstName is String && firstName.trim().isNotEmpty) {
+      if (lastName is String && lastName.trim().isNotEmpty) {
+        return '${firstName.trim()} ${lastName.trim()}';
+      }
+      return firstName.trim();
+    }
+
+    final possibleKeys = ['fullName', 'username', 'displayName'];
+    for (final key in possibleKeys) {
+      final value = userJson[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+
+    final profile = userJson['profile'];
+    if (profile is Map<String, dynamic>) {
+      final profileName = profile['fullName'] ?? profile['name'];
+      if (profileName is String && profileName.trim().isNotEmpty) {
+        return profileName.trim();
+      }
+    }
+
+    return null;
+  }
+
+  static String? _parseUserEmail(Map<String, dynamic> userJson) {
+    final possibleKeys = ['email', 'emailAddress'];
+    for (final key in possibleKeys) {
+      final value = userJson[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
+  }
 }
 
 class CommunitiesService {
@@ -258,6 +305,11 @@ class CommunitiesService {
         ? jsonDecode(response.body)
         : null;
 
+    developer.log(
+      'createCommunity <- status: ${response.statusCode}, body: ${response.body}',
+      name: 'CommunitiesService',
+    );
+
     if (response.statusCode == 201) {
       if (decodedBody is! Map<String, dynamic>) {
         throw CommunitiesException('Respuesta inválida del servidor');
@@ -392,6 +444,11 @@ class CommunitiesService {
 
     if (response.statusCode == 200) {
       final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : [];
+
+      developer.log(
+        'fetchCommunityJoinRequests <- decoded=${decoded.runtimeType}: $decoded',
+        name: 'CommunitiesService',
+      );
 
       if (decoded is List) {
         return decoded
