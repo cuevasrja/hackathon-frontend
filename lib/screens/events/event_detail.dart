@@ -13,8 +13,9 @@ class EventDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = event.place;
     final organizer = event.organizer;
-    final formattedDate = _formatDate(event.timeBegin);
-    final formattedTime = _formatTime(event.timeBegin);
+    final localTimeBegin = event.timeBegin.toLocal();
+    final formattedDate = _formatDate(localTimeBegin);
+    final formattedTime = _formatTime(localTimeBegin);
     final imageUrl =
         place?.image ??
         event.externalUrl ??

@@ -5,9 +5,17 @@ import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:hackathon_frontend/screens/home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize timezone database and set local timezone to UTC-4 (Caracas)
+  tzdata.initializeTimeZones();
+  final caracas = tz.getLocation('America/Caracas');
+  tz.setLocalLocation(caracas);
+  
   await initializeDateFormatting('es', null);
   try{
     if (kIsWeb) {
