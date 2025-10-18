@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hackathon_frontend/screens/calendar_screen.dart';
 import 'package:hackathon_frontend/widgets/daily_meal_plan.dart';
 
 class MyDietScreen extends StatelessWidget {
@@ -12,7 +13,12 @@ class MyDietScreen extends StatelessWidget {
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.calendar_today),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CalendarScreen()),
+              );
+            },
           ),
         ],
       ),
