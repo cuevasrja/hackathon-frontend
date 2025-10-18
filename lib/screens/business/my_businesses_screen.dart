@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/login.dart';
 import 'my_business_detail.dart';
+import 'create_my_business.dart';
 
 class MyBusinessesListScreen extends StatefulWidget {
   const MyBusinessesListScreen({super.key});
@@ -116,7 +117,7 @@ class _MyBusinessesListScreenState extends State<MyBusinessesListScreen> {
       }
 
       final filteredPlaces = response.places
-          .where((place) => place.proprietor?.id == userId)
+          .where((place) => place.ownerId == userId)
           .toList();
 
       setState(() {
@@ -187,10 +188,19 @@ class _MyBusinessesListScreenState extends State<MyBusinessesListScreen> {
         child: _buildBody(),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navegar a la pantalla para registrar un nuevo negocio
-          print('Registrar nuevo negocio');
-        },
+        onPressed: _isLoading
+            ? null
+            : () async {
+                final created = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (context) => const CreateBusinessScreen(),
+                  ),
+                );
+
+                if (created == true) {
+                  await _loadPlaces(reset: true);
+                }
+              },
         backgroundColor: kPrimaryColor,
         child: const Icon(Icons.add_business_outlined, color: Colors.white),
         tooltip: 'Añadir Negocio',

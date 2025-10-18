@@ -47,9 +47,9 @@ class PlacesService {
       queryParameters['status'] = status.trim();
     }
 
-    final uri = Uri.parse('$baseUrl/api/places').replace(
-      queryParameters: queryParameters,
-    );
+    final uri = Uri.parse(
+      '$baseUrl/api/places',
+    ).replace(queryParameters: queryParameters);
 
     http.Response response;
     try {
@@ -96,6 +96,88 @@ class PlacesService {
 
     throw PlacesException('Error inesperado (${response.statusCode})');
   }
+
+  Future<PlaceCreationResponse> createPlace({
+    required String name,
+    required String direction,
+    required String city,
+    required String country,
+    required int capacity,
+    required String type,
+    required int proprietorId,
+    required String mapUrl,
+    required String image,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw PlacesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw PlacesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/places');
+
+    http.Response response;
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'name': name.trim(),
+              'direction': direction.trim(),
+              'city': city.trim(),
+              'country': country.trim(),
+              'capacity': capacity,
+              'type': type.trim(),
+              'proprietorId': proprietorId,
+              'mapUrl': mapUrl.trim(),
+              'image': image.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw PlacesException('No fue posible conectar con el servidor');
+    }
+
+    final decodedBody = response.body.isNotEmpty
+        ? jsonDecode(response.body)
+        : null;
+
+    if (response.statusCode == 201) {
+      if (decodedBody is! Map<String, dynamic>) {
+        throw PlacesException('Respuesta inválida del servidor');
+      }
+      return PlaceCreationResponse.fromJson(decodedBody);
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 422) {
+      final message = decodedBody is Map<String, dynamic>
+          ? decodedBody['message'] as String? ?? 'Datos inválidos'
+          : 'Datos inválidos';
+      throw PlacesException(message);
+    }
+
+    if (response.statusCode == 401) {
+      throw PlacesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    if (decodedBody is Map<String, dynamic>) {
+      final message =
+          decodedBody['message'] as String? ??
+          'Error inesperado al crear el negocio';
+      throw PlacesException(message);
+    }
+
+    throw PlacesException('Error inesperado (${response.statusCode})');
+  }
 }
 
 class PlacesResponse {
@@ -120,6 +202,7 @@ class PlaceSummary {
     required this.reviewsCount,
     this.imageUrl,
     this.proprietor,
+    this.ownerId,
   });
 
   factory PlaceSummary.fromJson(Map<String, dynamic> json) {
@@ -162,6 +245,9 @@ class PlaceSummary {
       proprietor: proprietorJson is Map<String, dynamic>
           ? PlaceProprietor.fromJson(proprietorJson)
           : null,
+      ownerId: json['ownerId'] is int
+          ? json['ownerId'] as int
+          : int.tryParse('${json['ownerId']}'),
     );
   }
 
@@ -178,6 +264,7 @@ class PlaceSummary {
   final int reviewsCount;
   final String? imageUrl;
   final PlaceProprietor? proprietor;
+  final int? ownerId;
 
   String get proprietorFullName {
     if (proprietor == null) {
@@ -243,6 +330,24 @@ class PlacePagination {
   final int totalPages;
 
   bool get hasMore => page < totalPages;
+}
+
+class PlaceCreationResponse {
+  PlaceCreationResponse({required this.message, required this.place});
+
+  factory PlaceCreationResponse.fromJson(Map<String, dynamic> json) {
+    final placeJson = json['place'];
+    if (placeJson is! Map<String, dynamic>) {
+      throw PlacesException('Respuesta inválida del servidor');
+    }
+    return PlaceCreationResponse(
+      message: json['message'] as String? ?? 'Negocio creado exitosamente',
+      place: PlaceSummary.fromJson(placeJson),
+    );
+  }
+
+  final String message;
+  final PlaceSummary place;
 }
 
 class PlacesException implements Exception {
