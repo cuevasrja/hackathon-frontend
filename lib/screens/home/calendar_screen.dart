@@ -38,7 +38,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     try {
       final events = await _eventService.fetchJoinedEvents();
-      developer.log('Fetched ${events.length} events', name: 'CalendarScreen');
 
       final eventMap = LinkedHashMap<DateTime, List<Event>>(
         equals: isSameDay,
@@ -46,9 +45,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
 
       for (final event in events) {
-        final startDate = event.timeBegin;
-        final endDate =
-            event.timeEnd.isBefore(startDate) ? startDate : event.timeEnd;
+        final startDate = event.event.timeBegin;
+        final endDate = event.event.timeEnd.isBefore(startDate) ? startDate : event.event.timeEnd;
 
         var day = startDate;
         while (day.isBefore(endDate) || isSameDay(day, endDate)) {
@@ -56,7 +54,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           if (eventMap[date] == null) {
             eventMap[date] = [];
           }
-          eventMap[date]!.add(event);
+          eventMap[date]!.add(event.event);
           day = day.add(const Duration(days: 1));
         }
       }
@@ -67,8 +65,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       });
     } catch (e) {
       developer.log('Error fetching events: $e', name: 'CalendarScreen');
+
       setState(() {
-        _error = "Failed to load events.";
+        _error = "Error al cargar eventos. Inténtalo de nuevo más tarde.";
         _isLoading = false;
       });
     }
