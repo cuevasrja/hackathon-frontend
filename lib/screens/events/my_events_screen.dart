@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../auth/login.dart'; // Para usar las constantes de color
+import 'create_events.dart';
 
 // --- 1. Modelo de Datos para un Plan/Evento ---
 class Plan {
@@ -111,8 +112,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            // TODO: Lógica para navegar a la pantalla de "Crear Plan"
-            print('Crear nuevo plan');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const CreateEventScreen(),
+              ),
+            );
           },
           backgroundColor: kPrimaryColor,
           child: const Icon(Icons.add, color: Colors.white),
@@ -197,8 +201,11 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.image_not_supported_outlined,
-                            size: 40, color: Colors.grey),
+                        Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 40,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 8),
                         Text(
                           'Imagen no disponible',
