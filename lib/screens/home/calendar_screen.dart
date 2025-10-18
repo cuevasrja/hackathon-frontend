@@ -138,6 +138,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           : _error != null
               ? Center(child: Text(_error!))
               : TableCalendar<Event>(
+                  locale: 'es_ES',
                   firstDay: DateTime.utc(2020, 1, 1),
                   lastDay: DateTime.utc(2030, 12, 31),
                   focusedDay: _focusedDay,

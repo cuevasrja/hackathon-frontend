@@ -4,9 +4,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:hackathon_frontend/screens/home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es', null);
   try{
     if (kIsWeb) {
       await dotenv.load();
