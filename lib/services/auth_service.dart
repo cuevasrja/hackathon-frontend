@@ -50,6 +50,73 @@ class AuthService {
 
     throw AuthException('Error inesperado (${response.statusCode})');
   }
+
+  Future<AuthResponse> signup({
+    required String name,
+    required String lastName,
+    required String email,
+    required String password,
+    required String birthDate,
+    required String gender,
+    required String city,
+    required String country,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw AuthException('API_BASE_URL no está configurado');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/auth/signup');
+
+    http.Response response;
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': name,
+              'lastName': lastName,
+              'email': email,
+              'password': password,
+              'birthDate': birthDate,
+              'gender': gender,
+              'city': city,
+              'country': country,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw AuthException('No fue posible conectar con el servidor');
+    }
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        try {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final token = data['token'] as String?;
+          final userData = data['user'] as Map<String, dynamic>?;
+
+          if (token != null && userData != null) {
+            return AuthResponse(
+              token: token,
+              user: AuthUser.fromJson(userData),
+            );
+          }
+        } on FormatException {
+          throw AuthException('Respuesta de signup no es JSON');
+        }
+      }
+
+      return await login(email: email, password: password);
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 409) {
+      throw AuthException('No fue posible registrar la cuenta');
+    }
+
+    throw AuthException('Error inesperado (${response.statusCode})');
+  }
 }
 
 class AuthResponse {
