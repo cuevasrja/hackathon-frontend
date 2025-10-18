@@ -9,10 +9,10 @@ class Event {
   final String description;
   final DateTime timeBegin;
   final DateTime timeEnd;
-  final int placeId;
-  final int organizerId;
+  final int? placeId;
+  final int? organizerId;
   final int? communityId;
-  final int minAge;
+  final int? minAge;
   final String status;
   final String visibility;
   final DateTime createdAt;
@@ -31,7 +31,7 @@ class Event {
     required this.placeId,
     required this.organizerId,
     this.communityId,
-    required this.minAge,
+    this.minAge,
     required this.status,
     required this.visibility,
     required this.createdAt,
@@ -54,10 +54,10 @@ class Event {
       description: json['description'] as String,
       timeBegin: DateTime.parse(json['timeBegin'] as String),
       timeEnd: json['timeEnd'] != null ? DateTime.parse(json['timeEnd'] as String) : DateTime.now(),
-      placeId: json['placeId'] as int,
-      organizerId: json['organizerId'] as int,
+      placeId: json['placeId'] as int? ?? 0,
+      organizerId: json['organizerId'] as int?,
       communityId: json['communityId'] as int?,
-      minAge: json['minAge'] as int,
+      minAge: json['minAge'] as int? ?? 0,
       status: json['status'] as String,
       visibility: json['visibility'] as String? ?? 'PRIVATE',
       createdAt: DateTime.parse(json['createdAt'] as String),

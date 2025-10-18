@@ -4,7 +4,7 @@ import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/models/meal_model.dart';
 import 'package:hackathon_frontend/screens/events/event_detail.dart';
 import 'package:hackathon_frontend/services/event_service.dart';
-import 'package:hackathon_frontend/widgets/meal_card.dart';
+import 'package:hackathon_frontend/widgets/small_event_card.dart';
 
 class WhatsForEventSection extends StatefulWidget {
   const WhatsForEventSection({super.key});
@@ -77,7 +77,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
           ),
         ),
         SizedBox(
-          height: 220,
+          height: 240,
           child: FutureBuilder<List<Meal>>(
             future: _eventMealsFuture,
             builder: (context, snapshot) {
@@ -104,7 +104,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
                 itemCount: meals.length,
                 itemBuilder: (context, index) {
                   final event = index < _events.length ? _events[index] : null;
-                  return MealCard(
+                  return SmallEventCard(
                     meal: meals[index],
                     onTap: () {
                       if (event == null) return;

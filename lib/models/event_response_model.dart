@@ -26,3 +26,26 @@ class EventResponse {
     );
   }
 }
+
+class JoinedEvent {
+  final int eventId;
+  final int userId;
+  final DateTime joinedAt;
+  final Event event;
+
+  JoinedEvent({
+    required this.eventId,
+    required this.userId,
+    required this.joinedAt,
+    required this.event,
+  });
+
+  factory JoinedEvent.fromJson(Map<String, dynamic> json) {
+    return JoinedEvent(
+      eventId: json['eventId'] as int,
+      userId: json['userId'] as int,
+      joinedAt: DateTime.parse(json['joinedAt'] as String),
+      event: Event.fromJson(json['event'] as Map<String, dynamic>),
+    );
+  }
+}

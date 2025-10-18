@@ -214,7 +214,7 @@ class EventService {
     throw EventException(message);
   }
 
-  Future<List<Event>> fetchJoinedEvents() async {
+  Future<List<JoinedEvent>> fetchJoinedEvents() async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
       throw EventException('API_BASE_URL no está configurado');
@@ -249,7 +249,7 @@ class EventService {
       if (decoded is List) {
         return decoded
             .whereType<Map<String, dynamic>>()
-            .map(Event.fromJson)
+            .map(JoinedEvent.fromJson)
             .toList();
       }
 
@@ -258,7 +258,7 @@ class EventService {
         if (data is List) {
           return data
               .whereType<Map<String, dynamic>>()
-              .map(Event.fromJson)
+              .map(JoinedEvent.fromJson)
               .toList();
         }
       }
