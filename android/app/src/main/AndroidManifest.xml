@@ -5,7 +5,7 @@
         <package android:name="com.yummyrides" />
     </queries>
     <application
-        android:label="hackathon_frontend"
+        android:label="Plancito"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
