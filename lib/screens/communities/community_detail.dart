@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
@@ -246,11 +248,16 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
       if (!mounted) {
         return;
       }
+      final isOwner =
+          userId != null && community.createdById != null && community.createdById == userId;
+      developer.log(
+        'fetchCommunity -> userId=$userId createdById=${community.createdById} isOwner=$isOwner',
+        name: 'CommunityDetailsScreen',
+      );
       setState(() {
         _community = community;
         _isLoading = false;
-        _isOwner = userId != null && community.ownerId != null &&
-            community.ownerId == userId;
+        _isOwner = isOwner;
       });
     } on CommunitiesException catch (e) {
       if (!mounted) {

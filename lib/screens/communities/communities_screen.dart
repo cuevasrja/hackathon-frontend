@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart' as auth; // Para usar las constantes de color
+import 'package:hackathon_frontend/screens/auth/login.dart'
+    as auth; // Para usar las constantes de color
 import 'package:hackathon_frontend/screens/communities/community_detail.dart'
     as detail;
 import 'package:hackathon_frontend/screens/communities/create_community.dart';
@@ -87,6 +88,35 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
       }
     }
 
+    if (userId != null) {
+      final ownerCommunities = discoverCommunities
+          .where(
+            (community) =>
+                community.createdById != null &&
+                community.createdById == userId,
+          )
+          .toList();
+
+      if (ownerCommunities.isNotEmpty) {
+        final existingIds = myCommunities
+            .map((community) => community.id)
+            .toSet();
+        for (final ownerCommunity in ownerCommunities) {
+          if (!existingIds.contains(ownerCommunity.id)) {
+            myCommunities.add(ownerCommunity);
+            existingIds.add(ownerCommunity.id);
+          }
+        }
+      }
+    }
+
+    if (userId != null) {
+      final filteredMyCommunities = myCommunities
+          .where((community) => community.createdById == userId)
+          .toList();
+      myCommunities = filteredMyCommunities;
+    }
+
     if (!mounted) {
       return;
     }
@@ -114,7 +144,10 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
           elevation: 1,
           title: const Text(
             'Comunidades',
-            style: TextStyle(color: auth.kPrimaryColor, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: auth.kPrimaryColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           centerTitle: true,
           bottom: TabBar(
@@ -316,16 +349,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     if (_searchQuery.isEmpty) {
       return communities;
     }
-    return communities
-        .where(
-          (community) {
-            final query = _searchQuery.toLowerCase();
-            final nameMatch = community.name.toLowerCase().contains(query);
-            final descriptionMatch = community.description?.toLowerCase().contains(query) ?? false;
-            return nameMatch || descriptionMatch;
-          },
-        )
-        .toList();
+    return communities.where((community) {
+      final query = _searchQuery.toLowerCase();
+      final nameMatch = community.name.toLowerCase().contains(query);
+      final descriptionMatch =
+          community.description?.toLowerCase().contains(query) ?? false;
+      return nameMatch || descriptionMatch;
+    }).toList();
   }
 
   Widget _buildCommunitySummaryCard(CommunitySummary community) {
@@ -338,9 +368,8 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => detail.CommunityDetailsScreen(
-                communityId: community.id,
-              ),
+              builder: (context) =>
+                  detail.CommunityDetailsScreen(communityId: community.id),
             ),
           );
         },
@@ -353,11 +382,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                 child: CircleAvatar(
                   radius: 30,
                   backgroundColor: auth.kPrimaryColor.withOpacity(0.2),
-                  backgroundImage: community.imageUrl != null &&
+                  backgroundImage:
+                      community.imageUrl != null &&
                           community.imageUrl!.isNotEmpty
                       ? NetworkImage(community.imageUrl!)
                       : null,
-                  child: (community.imageUrl != null &&
+                  child:
+                      (community.imageUrl != null &&
                           community.imageUrl!.isNotEmpty)
                       ? null
                       : const Icon(Icons.people, color: auth.kPrimaryColor),

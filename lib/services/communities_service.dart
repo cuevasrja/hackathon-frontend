@@ -16,6 +16,7 @@ class CommunitySummary {
     this.description,
     this.imageUrl,
     this.isPrivate,
+    this.createdById,
   });
 
   factory CommunitySummary.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class CommunitySummary {
       description: json['description'] as String?,
       imageUrl: json['imageUrl'] as String?,
       isPrivate: json['isPrivate'] as bool?,
+      createdById: _parseCreatedById(json),
     );
   }
 
@@ -40,6 +42,39 @@ class CommunitySummary {
   final String? description;
   final String? imageUrl;
   final bool? isPrivate;
+  final int? createdById;
+
+  static int? _parseCreatedById(Map<String, dynamic> json) {
+    final rawCreatedById = json['createdById'];
+    if (rawCreatedById is int) {
+      return rawCreatedById;
+    }
+    if (rawCreatedById is num) {
+      return rawCreatedById.toInt();
+    }
+    if (rawCreatedById is String) {
+      final parsed = int.tryParse(rawCreatedById);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    final createdByJson = json['createdBy'];
+    if (createdByJson is Map<String, dynamic>) {
+      final createdByJsonId = createdByJson['id'] ?? createdByJson['userId'];
+      if (createdByJsonId is int) {
+        return createdByJsonId;
+      }
+      if (createdByJsonId is num) {
+        return createdByJsonId.toInt();
+      }
+      if (createdByJsonId is String) {
+        return int.tryParse(createdByJsonId);
+      }
+    }
+
+    return null;
+  }
 }
 
 class CommunityJoinRequestResult {
@@ -117,6 +152,15 @@ class CommunitiesService {
     } on Exception {
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
+
+    developer.log(
+      'fetchCommunities <- status: ${response.statusCode}',
+      name: 'CommunitiesService',
+    );
+    developer.log(
+      'fetchCommunities <- body: ${response.body}',
+      name: 'CommunitiesService',
+    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
@@ -494,7 +538,7 @@ class CommunityDetail {
     required this.membersCount,
     required this.eventsCount,
     required this.requestsCount,
-    this.ownerId,
+    this.createdById,
     this.imageUrl,
     this.members,
     this.events,
@@ -502,29 +546,7 @@ class CommunityDetail {
 
   factory CommunityDetail.fromJson(Map<String, dynamic> json) {
     final counts = json['_count'] as Map<String, dynamic>?;
-    int? ownerId;
-    final rawOwnerId = json['ownerId'];
-    if (rawOwnerId is int) {
-      ownerId = rawOwnerId;
-    } else if (rawOwnerId is num) {
-      ownerId = rawOwnerId.toInt();
-    } else if (rawOwnerId is String) {
-      ownerId = int.tryParse(rawOwnerId);
-    }
-
-    if (ownerId == null) {
-      final ownerJson = json['owner'];
-      if (ownerJson is Map<String, dynamic>) {
-        final ownerJsonId = ownerJson['id'] ?? ownerJson['userId'];
-        if (ownerJsonId is int) {
-          ownerId = ownerJsonId;
-        } else if (ownerJsonId is num) {
-          ownerId = ownerJsonId.toInt();
-        } else if (ownerJsonId is String) {
-          ownerId = int.tryParse(ownerJsonId);
-        }
-      }
-    }
+    final createdById = CommunitySummary._parseCreatedById(json);
     return CommunityDetail(
       id: json['id'] as int,
       name: json['name'] as String? ?? '',
@@ -532,7 +554,7 @@ class CommunityDetail {
       membersCount: counts?['members'] as int? ?? 0,
       eventsCount: counts?['events'] as int? ?? 0,
       requestsCount: counts?['requests'] as int? ?? 0,
-      ownerId: ownerId,
+      createdById: createdById,
       imageUrl: json['imageUrl'] as String?,
       members: json['members'] as List<dynamic>?,
       events: json['events'] as List<dynamic>?,
@@ -545,7 +567,7 @@ class CommunityDetail {
   final int membersCount;
   final int eventsCount;
   final int requestsCount;
-  final int? ownerId;
+  final int? createdById;
   final String? imageUrl;
   final List<dynamic>? members;
   final List<dynamic>? events;
