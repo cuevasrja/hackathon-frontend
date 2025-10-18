@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/services/places_service.dart';
+import 'package:hackathon_frontend/services/products_service.dart';
 
 import '../auth/login.dart'; // Para los colores
 //import 'create_event_screen.dart'; // Descomentar cuando la tengas
@@ -42,6 +43,11 @@ class BusinessDetailsScreen extends StatefulWidget {
 }
 
 class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
+  final ProductsService _productsService = ProductsService();
+  final List<ProductSummary> _products = [];
+  bool _isLoadingProducts = false;
+  String? _productsError;
+
   // --- Datos de Ejemplo (en una app real, los buscarías usando widget.business.id) ---
   final List<BusinessPlan> _activePlans = [
     BusinessPlan(
@@ -80,6 +86,12 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
@@ -109,6 +121,8 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
           children: [
             _buildHeader(),
             const SizedBox(height: 24),
+            _buildProductsSection(),
+            const SizedBox(height: 24),
             _buildStatsGrid(),
             const SizedBox(height: 24),
             _buildPlansSection(),
@@ -134,6 +148,48 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
 
   // --- Widgets de la UI (ahora usan widget.business) ---
 
+  Future<void> _loadProducts() async {
+    setState(() {
+      _isLoadingProducts = true;
+      _productsError = null;
+    });
+
+    try {
+      final result = await _productsService.fetchProducts(
+        placeId: widget.place.id,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _products
+          ..clear()
+          ..addAll(result);
+      });
+    } on ProductsException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _productsError = e.message;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _productsError = 'No pudimos cargar los productos del negocio.';
+      });
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoadingProducts = false;
+      });
+    }
+  }
+
   Widget _buildHeader() {
     return Center(
       child: Column(
@@ -141,15 +197,20 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
           CircleAvatar(
             radius: 50,
             backgroundColor: kPrimaryColor.withOpacity(0.2),
-            backgroundImage: widget.place.imageUrl != null &&
+            backgroundImage:
+                widget.place.imageUrl != null &&
                     widget.place.imageUrl!.isNotEmpty
                 ? NetworkImage(widget.place.imageUrl!)
                 : null,
-            child: widget.place.imageUrl != null &&
+            child:
+                widget.place.imageUrl != null &&
                     widget.place.imageUrl!.isNotEmpty
                 ? null
-                : const Icon(Icons.store_mall_directory,
-                    color: kPrimaryColor, size: 48),
+                : const Icon(
+                    Icons.store_mall_directory,
+                    color: kPrimaryColor,
+                    size: 48,
+                  ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -168,13 +229,203 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
             runSpacing: 8,
             children: [
               _buildStatusChip(widget.place.status),
-              _buildInfoChip(Icons.people_outline,
-                  '${widget.place.capacity} de capacidad'),
-              _buildInfoChip(Icons.event_note_outlined,
-                  '${widget.place.eventsCount} eventos'),
-              _buildInfoChip(Icons.reviews_outlined,
-                  '${widget.place.reviewsCount} reseñas'),
+              _buildInfoChip(
+                Icons.people_outline,
+                '${widget.place.capacity} de capacidad',
+              ),
+              _buildInfoChip(
+                Icons.event_note_outlined,
+                '${widget.place.eventsCount} eventos',
+              ),
+              _buildInfoChip(
+                Icons.reviews_outlined,
+                '${widget.place.reviewsCount} reseñas',
+              ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Productos destacados',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            IconButton(
+              onPressed: _isLoadingProducts ? null : _loadProducts,
+              icon: Icon(
+                Icons.refresh,
+                color: _isLoadingProducts ? Colors.grey : kPrimaryColor,
+              ),
+              tooltip: 'Recargar productos',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_isLoadingProducts && _products.isEmpty)
+          const Center(child: CircularProgressIndicator())
+        else if (_productsError != null && _products.isEmpty)
+          _buildProductsError()
+        else if (_products.isEmpty)
+          _buildProductsEmpty()
+        else
+          Column(
+            children: [
+              ..._products.map(_buildProductCard).toList(),
+              if (_isLoadingProducts)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProductCard(ProductSummary product) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: product.image != null && product.image!.isNotEmpty
+                  ? Image.network(
+                      product.image!,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      width: 72,
+                      height: 72,
+                      color: kPrimaryColor.withOpacity(0.1),
+                      child: const Icon(
+                        Icons.fastfood_outlined,
+                        color: kPrimaryColor,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    product.formattedPrice,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: kPrimaryColor,
+                    ),
+                  ),
+                  if (product.promotions.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: product.promotions
+                          .map((promo) => _buildPromotionChip(promo))
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPromotionChip(ProductPromotion promo) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.local_offer_outlined,
+            size: 14,
+            color: Colors.orange,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '-${promo.discount}% ${promo.membership}'.trim(),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.orange,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductsError() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(Icons.error_outline, color: Colors.redAccent.shade200, size: 40),
+        const SizedBox(height: 12),
+        Text(
+          _productsError ?? 'Error al cargar productos',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14, color: Colors.black54),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _loadProducts,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Reintentar'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kPrimaryColor,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProductsEmpty() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: const [
+          Icon(Icons.sentiment_dissatisfied, color: kPrimaryColor, size: 40),
+          SizedBox(height: 12),
+          Text(
+            'Aún no has registrado productos.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.black54),
           ),
         ],
       ),
@@ -406,7 +657,10 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
     return Chip(
       label: Text(
         status.isEmpty ? 'Sin estado' : status,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       backgroundColor: color,
     );
