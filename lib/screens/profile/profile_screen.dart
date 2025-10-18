@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hackathon_frontend/screens/profile/change_password_screen.dart';
+import 'package:hackathon_frontend/screens/profile/edit_profile_screen.dart';
+import 'package:hackathon_frontend/screens/profile/notifications_screen.dart';
+import 'package:hackathon_frontend/screens/profile/privacy_screen.dart';
+import 'package:hackathon_frontend/screens/profile/support_screen.dart';
 import '../auth/login.dart'; // Importamos para usar las constantes de color
 
 class ProfileScreen extends StatefulWidget {
@@ -106,8 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: double.infinity,
                     child: TextButton(
                       onPressed: () {
-                        // TODO: Navegar a pantalla de edición de perfil
-                        print('Editar perfil');
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
                       },
                       style: TextButton.styleFrom(
                         foregroundColor: kPrimaryColor,
@@ -140,32 +144,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.vpn_key_outlined,
                     title: 'Cambiar Contraseña',
                     onTap: () {
-                      // TODO: Navegar a pantalla de cambio de contraseña
-                      print('Cambiar contraseña');
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
                     },
                   ),
                   _buildProfileOption(
                     icon: Icons.notifications_none_outlined,
                     title: 'Notificaciones',
                     onTap: () {
-                      // TODO: Navegar a pantalla de ajustes de notificaciones
-                      print('Ajustes de notificaciones');
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
                     },
                   ),
                   _buildProfileOption(
                     icon: Icons.security_outlined,
                     title: 'Privacidad',
                     onTap: () {
-                      // TODO: Navegar a pantalla de privacidad
-                      print('Ajustes de privacidad');
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PrivacyScreen()));
                     },
                   ),
                   _buildProfileOption(
                     icon: Icons.help_outline,
                     title: 'Ayuda y Soporte',
                     onTap: () {
-                      // TODO: Navegar a pantalla de ayuda
-                      print('Ayuda y Soporte');
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const SupportScreen()));
                     },
                   ),
                   const SizedBox(height: 48.0),
