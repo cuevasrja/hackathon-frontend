@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ProfileService {
   ProfileService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  String get _baseUrl => "https://hackathon-back-theta.vercel.app";
 
   Future<AuthUser> fetchUser(int id) async {
     final baseUrl = _baseUrl.trim();

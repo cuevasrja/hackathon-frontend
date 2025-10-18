@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 class AuthService {
   AuthService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  String get _baseUrl => "https://hackathon-back-theta.vercel.app";
 
   Future<AuthResponse> login({
     required String email,

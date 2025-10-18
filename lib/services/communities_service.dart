@@ -44,7 +44,7 @@ class CommunitySummary {
 class CommunitiesService {
   CommunitiesService();
 
-  String get _baseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  String get _baseUrl => "https://hackathon-back-theta.vercel.app";
 
   Future<List<CommunitySummary>> fetchCommunities() async {
     final baseUrl = _baseUrl.trim();
