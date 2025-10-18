@@ -278,7 +278,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Expanded(
               child: Text(
@@ -286,39 +286,26 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
-            Flexible(
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    IconButton(
-                      onPressed: _isLoadingProducts ? null : _loadProducts,
-                      icon: Icon(
-                        Icons.refresh,
-                        color:
-                            _isLoadingProducts ? Colors.grey : kPrimaryColor,
-                      ),
-                      tooltip: 'Recargar productos',
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _isLoadingProducts ? null : _openCreateProduct,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Nuevo producto'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                      ),
-                    ),
-                  ],
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: _isLoadingProducts ? null : _loadProducts,
+                  icon: Icon(
+                    Icons.refresh,
+                    color: _isLoadingProducts ? Colors.grey : kPrimaryColor,
+                  ),
+                  tooltip: 'Recargar productos',
                 ),
-              ),
+                IconButton(
+                  onPressed: _isLoadingProducts ? null : _openCreateProduct,
+                  icon: Icon(
+                    Icons.add,
+                    color: _isLoadingProducts ? Colors.grey : kPrimaryColor,
+                  ),
+                  tooltip: 'Nuevo producto',
+                ),
+              ],
             ),
           ],
         ),
@@ -363,6 +350,17 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                       width: 72,
                       height: 72,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 72,
+                          height: 72,
+                          color: kPrimaryColor.withOpacity(0.1),
+                          child: const Icon(
+                            Icons.fastfood_outlined,
+                            color: kPrimaryColor,
+                          ),
+                        );
+                      },
                     )
                   : Container(
                       width: 72,
