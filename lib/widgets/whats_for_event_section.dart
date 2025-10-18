@@ -3,8 +3,8 @@ import 'package:hackathon_frontend/models/meal_model.dart';
 import 'package:hackathon_frontend/services/meal_service.dart';
 import 'package:hackathon_frontend/widgets/meal_card.dart';
 
-class WhatsForLunchSection extends StatelessWidget {
-  const WhatsForLunchSection({super.key});
+class WhatsForEventSection extends StatelessWidget {
+  const WhatsForEventSection({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ class WhatsForLunchSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                'What\'s for lunch?',
+                '¿Qué plancito quieres hoy?',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const Icon(Icons.arrow_forward_ios),

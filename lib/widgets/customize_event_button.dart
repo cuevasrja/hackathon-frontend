@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class CustomizeDietButton extends StatelessWidget {
-  const CustomizeDietButton({super.key});
+class CustomizeEventButton extends StatelessWidget {
+  const CustomizeEventButton({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -9,7 +9,7 @@ class CustomizeDietButton extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: ElevatedButton(
         onPressed: () {},
-        child: const Text('Customize diet'),
+        child: const Text('Planear evento'),
       ),
     );
   }

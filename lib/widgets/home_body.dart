@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hackathon_frontend/widgets/customize_diet_button.dart';
+import 'package:hackathon_frontend/widgets/customize_event_button.dart';
 import 'package:hackathon_frontend/widgets/getting_started_card.dart';
-import 'package:hackathon_frontend/widgets/manage_your_meals_section.dart';
-import 'package:hackathon_frontend/widgets/whats_for_lunch_section.dart';
+import 'package:hackathon_frontend/widgets/manage_your_events_section.dart';
+import 'package:hackathon_frontend/widgets/whats_for_event_section.dart';
 
 class HomeBody extends StatelessWidget {
   const HomeBody({super.key});
@@ -17,19 +17,22 @@ class HomeBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              SvgPicture.asset('lib/assets/icon_logo_clear.svg', height: 50),
+              SvgPicture.asset(
+                'lib/assets/icon_logo_clear.svg',
+                height: 50,
+              ),
               Text(
-                'It\'s time to eat!',
+                '¡Es hora de un plancito!',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
-              const Text('Fast and convenient way to eat right'),
+              const Text('Una forma rápida y cómoda de organizar tus salidas.'),
             ],
           ),
         ),
         const GettingStartedCard(),
-        const WhatsForLunchSection(),
-        const ManageYourMealsSection(),
-        const CustomizeDietButton(),
+        const WhatsForEventSection(),
+        const ManageYourEventsSection(),
+        const CustomizeEventButton(),
       ],
     );
   }
