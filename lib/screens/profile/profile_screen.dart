@@ -340,6 +340,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userIdKey);
     await prefs.remove(LoginStorageKeys.token);
+    await prefs.remove(LoginStorageKeys.userRole);
+
     print('Cerrando sesión...');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

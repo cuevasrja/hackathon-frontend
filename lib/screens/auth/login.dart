@@ -12,6 +12,7 @@ const Color kBackgroundColor = Color(0xFFF5F4EF);
 class LoginStorageKeys {
   static const userId = 'userId';
   static const token = 'authToken';
+  static const userRole = 'userRole';
 }
 
 class LoginScreen extends StatefulWidget {
@@ -75,6 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(LoginStorageKeys.userId, authResponse.user.id);
       await prefs.setString(LoginStorageKeys.token, authResponse.token);
+      await prefs.setString(LoginStorageKeys.userRole, authResponse.user.role);
 
       if (!mounted) return;
 
