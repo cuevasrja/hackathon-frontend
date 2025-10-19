@@ -553,7 +553,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Sesión cerrada correctamente.'),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: kPrimaryColor,
       ),
     );
     // Navegar de vuelta al login y eliminar todas las rutas anteriores
