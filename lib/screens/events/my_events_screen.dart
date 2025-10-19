@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/screens/home/calendar_screen.dart';
@@ -250,6 +253,26 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
     );
   }
 
+  // Helper para convertir Event a JSON para logging
+  Map<String, dynamic> _eventToJson(Event event) {
+    return {
+      'id': event.id,
+      'name': event.name,
+      'description': event.description,
+      'timeBegin': event.timeBegin.toIso8601String(),
+      'timeEnd': event.timeEnd.toIso8601String(),
+      'placeId': event.placeId,
+      'organizerId': event.organizerId,
+      'communityId': event.communityId,
+      'minAge': event.minAge,
+      'status': event.status,
+      'visibility': event.visibility,
+      'createdAt': event.createdAt.toIso8601String(),
+      'externalUrl': event.externalUrl,
+      'image': event.image,
+    };
+  }
+
   Widget _buildPlanCard(Event event) {
     const List<String> meses = [
       'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
@@ -264,6 +287,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
+          // Log JSON de evento al hacer click
+          developer.log(jsonEncode(_eventToJson(event)));
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => EventDetailsScreen(event: event),
@@ -276,7 +301,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             Hero(
               tag: 'event-hero-${event.id}',
               child: Image.network(
-                event?.image ?? event.place?.image ?? 'https://via.placeholder.com/300x150/CCCCCC/FFFFFF?text=No+Image',
+                event.image ?? event.place?.image ?? 'https://via.placeholder.com/300x150/CCCCCC/FFFFFF?text=No+Image',
                 width: double.infinity,
                 height: 150,
                 fit: BoxFit.cover,
