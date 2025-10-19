@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -33,13 +34,16 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   final AIChatService _aiChatService = const AIChatService();
   String? _conversationId;
   late final RecorderController _recorderController;
+  late final AudioRecorder _audioRecorder;
   bool _isRecordingAudio = false;
   String? _currentRecordingPath;
 
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb) {
+    if (kIsWeb) {
+      _audioRecorder = AudioRecorder();
+    } else {
       _recorderController = RecorderController()
         ..androidEncoder = AndroidEncoder.aac
         ..androidOutputFormat = AndroidOutputFormat.mpeg4
@@ -61,7 +65,9 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
-    if (!kIsWeb) {
+    if (kIsWeb) {
+      _audioRecorder.dispose();
+    } else {
       _recorderController.dispose();
     }
     super.dispose();
@@ -132,9 +138,6 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   }
 
   Future<String> _createRecordingPath() async {
-    if (kIsWeb) {
-      throw UnsupportedError('Audio recording is not supported on the web.');
-    }
     final directory = await getTemporaryDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final separator = Platform.pathSeparator;
@@ -144,7 +147,16 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
 
   Future<bool> _ensureMicrophonePermission() async {
     if (kIsWeb) {
-      return false;
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Se requieren permisos de micrófono para grabar.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return hasPermission;
     }
     PermissionStatus status = await Permission.microphone.status;
     if (status.isPermanentlyDenied) {
@@ -203,8 +215,38 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   }
 
   Future<void> _toggleAudioRecording() async {
-    if (kIsWeb) return;
     if (_isLoading) {
+      return;
+    }
+
+    if (kIsWeb) {
+      try {
+        if (await _audioRecorder.isRecording()) {
+          final result = await _audioRecorder.stop();
+          if (result != null) {
+            setState(() {
+              _isRecordingAudio = false;
+            });
+            await _handleAudioMessage(result);
+          }
+        } else {
+          final hasPermission = await _ensureMicrophonePermission();
+          if (!hasPermission) {
+            return;
+          }
+          await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.opus), path: '');
+          setState(() {
+            _isRecordingAudio = true;
+          });
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudo grabar audio: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
       return;
     }
 
@@ -286,16 +328,15 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   }
 
   Future<void> _handleAudioMessage(
-    String audioFilePath, {
+    String audioPath, {
     String? fileName,
     bool resetConversation = false,
   }) async {
-    if (kIsWeb) return;
     if (_isLoading) {
       return;
     }
 
-    final path = audioFilePath.trim();
+    final path = audioPath.trim();
     if (path.isEmpty) {
       return;
     }
@@ -306,12 +347,23 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
     _scrollToBottom();
 
     try {
-      final AIAudioReply reply = await _aiChatService.sendAudioMessage(
-        audioFilePath: path,
-        fileName: fileName,
-        conversationId: _conversationId,
-        resetConversation: resetConversation,
-      );
+      final AIAudioReply reply;
+      if (kIsWeb) {
+        reply = await _aiChatService.sendAudioFromUrl(
+          audioUrl: path,
+          fileName: fileName,
+          conversationId: _conversationId,
+          resetConversation: resetConversation,
+        );
+      } else {
+        reply = await _aiChatService.sendAudioMessage(
+          audioFilePath: path,
+          fileName: fileName,
+          conversationId: _conversationId,
+          resetConversation: resetConversation,
+        );
+      }
+
       if (!mounted) {
         return;
       }
@@ -532,20 +584,19 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            if (!kIsWeb)
-              CircleAvatar(
-                backgroundColor:
-                    _isRecordingAudio ? Colors.redAccent : kPrimaryColor,
-                child: IconButton(
-                  icon: Icon(
-                    _isRecordingAudio ? Icons.stop : Icons.mic,
-                    color: Colors.white,
-                  ),
-                  onPressed:
-                      _isLoading ? null : () => _toggleAudioRecording(),
+            CircleAvatar(
+              backgroundColor:
+                  _isRecordingAudio ? Colors.redAccent : kPrimaryColor,
+              child: IconButton(
+                icon: Icon(
+                  _isRecordingAudio ? Icons.stop : Icons.mic,
+                  color: Colors.white,
                 ),
+                onPressed:
+                    _isLoading ? null : () => _toggleAudioRecording(),
               ),
-            if (!kIsWeb) const SizedBox(width: 8),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _textController,
