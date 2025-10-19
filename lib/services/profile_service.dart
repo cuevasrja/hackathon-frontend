@@ -56,6 +56,7 @@ class ProfileService {
     required String name,
     required String lastName,
     required String city,
+    String? image,
   }) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
@@ -69,11 +70,15 @@ class ProfileService {
     }
 
     final uri = Uri.parse('$baseUrl/api/users/me');
-    final payload = {
+    final payload = <String, dynamic>{
       'name': name.trim(),
       'lastName': lastName.trim(),
       'city': city.trim(),
     };
+
+    if (image != null) {
+      payload['image'] = image;
+    }
 
     developer.log(
       'updateUser -> PUT $uri with token: $token and payload: ${jsonEncode(payload)}',
@@ -118,6 +123,78 @@ class ProfileService {
 
     if (response.statusCode == 404) {
       throw ProfileException('Usuario no encontrado');
+    }
+
+    throw ProfileException('Error inesperado (${response.statusCode})');
+  }
+
+  Future<AuthUser> updateProfileImage({
+    required String image,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw ProfileException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('authToken');
+    if (token == null || token.isEmpty) {
+      throw ProfileException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/users/me');
+    final payload = {
+      'image': image,
+    };
+
+    developer.log(
+      'updateProfileImage -> PUT $uri with token: $token',
+      name: 'ProfileService',
+    );
+
+    http.Response response;
+    try {
+      response = await http
+          .put(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 30));
+    } on Exception {
+      print('Error updating profile image');
+      throw ProfileException('No fue posible conectar con el servidor');
+    }
+
+    developer.log(
+      'updateProfileImage <- status: ${response.statusCode}, body: ${response.body}',
+      name: 'ProfileService',
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return AuthUser.fromJson(data);
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 422) {
+      final decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
+      final message = decoded is Map<String, dynamic>
+          ? decoded['message'] as String? ?? 'Datos inválidos'
+          : 'Datos inválidos';
+      throw ProfileException(message);
+    }
+
+    if (response.statusCode == 404) {
+      throw ProfileException('Usuario no encontrado');
+    }
+
+    if (response.statusCode == 413) {
+      throw ProfileException('La imagen es demasiado grande');
     }
 
     throw ProfileException('Error inesperado (${response.statusCode})');

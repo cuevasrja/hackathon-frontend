@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import '../auth/login.dart'; // Importamos para usar las constantes de color
 import 'package:hackathon_frontend/services/profile_service.dart';
 
@@ -35,6 +38,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isSaving = false;
   String? _errorMessage;
   late ProfileService _profileService;
+  File? _imageFile;
+  String? _imageBase64;
+  bool _imageDeleted = false;
 
   @override
   void initState() {
@@ -54,6 +60,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  void _showImageSourceActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Elegir de la galería'),
+              onTap: () {
+                _pickImage(ImageSource.gallery);
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Tomar foto'),
+              onTap: () {
+                _pickImage(ImageSource.camera);
+                Navigator.of(context).pop();
+              },
+            ),
+            if (widget.currentProfileImageUrl.isNotEmpty || _imageFile != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Eliminar foto', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  _deleteImage();
+                  Navigator.of(context).pop();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      setState(() {
+        _imageFile = File(pickedFile.path);
+        _imageBase64 = 'data:image/png;base64,$base64Image';
+        _imageDeleted = false;
+      });
+    }
+  }
+
+  void _deleteImage() {
+    setState(() {
+      _imageFile = null;
+      _imageBase64 = '';
+      _imageDeleted = true;
+    });
+  }
+
   // --- Lógica para guardar los cambios ---
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
@@ -70,6 +136,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         name: _nameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         city: _cityController.text.trim(),
+        image: _imageBase64,
       );
 
       if (!mounted) return;
@@ -160,18 +227,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 60,
-                      backgroundImage: NetworkImage(
-                        widget.currentProfileImageUrl,
-                      ),
+                      backgroundImage: _imageFile != null
+                          ? FileImage(_imageFile!)
+                          : (widget.currentProfileImageUrl.isNotEmpty && !_imageDeleted)
+                              ? NetworkImage(widget.currentProfileImageUrl)
+                              : null,
+                      child: (_imageFile == null && (widget.currentProfileImageUrl.isEmpty || _imageDeleted))
+                          ? const Icon(Icons.person, size: 60, color: kPrimaryColor)
+                          : null,
                     ),
                     Positioned(
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: () {
-                          // TODO: Lógica para seleccionar una nueva imagen
-                          print('Cambiar imagen de perfil');
-                        },
+                        onTap: _showImageSourceActionSheet,
                         child: const CircleAvatar(
                           radius: 20,
                           backgroundColor: kPrimaryColor,
