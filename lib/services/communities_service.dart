@@ -203,15 +203,6 @@ class CommunitiesService {
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
 
-    developer.log(
-      'fetchCommunities <- status: ${response.statusCode}',
-      name: 'CommunitiesService',
-    );
-    developer.log(
-      'fetchCommunities <- body: ${response.body}',
-      name: 'CommunitiesService',
-    );
-
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       if (decoded is! List) {

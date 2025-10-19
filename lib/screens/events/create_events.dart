@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 //import 'package:dotted_border/dotted_border.dart'; // Importamos el paquete
 import '../auth/login.dart'; // Para usar las constantes de color
 import 'package:hackathon_frontend/services/event_service.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:hackathon_frontend/services/communities_service.dart';
 import 'package:hackathon_frontend/services/places_service.dart';
 
@@ -30,6 +36,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   // En un app real, aquí guardarías el archivo de imagen.
   // Por ahora, simulamos que se ha seleccionado una.
   bool _imageSelected = false;
+  bool _processingImage = false;
+  File? _selectedImageFile;
+  Uint8List? _previewBytes;
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<CommunitySummary> _communities = [];
   int? _selectedCommunityId;
@@ -186,6 +196,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         externalUrl: _externalUrlController.text.trim().isEmpty
             ? null
             : _externalUrlController.text.trim(),
+        imageFile: _selectedImageFile,
       );
 
       if (!mounted) return;
@@ -241,12 +252,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
               // --- Campo para Añadir Imagen ---
               GestureDetector(
-                onTap: () {
-                  // TODO: Lógica para abrir la galería de imágenes
-                  setState(() {
-                    _imageSelected = true;
-                  });
-                },
+                onTap: _processingImage ? null : _handleImageSelection,
                 child: Container(
                   height: 160,
                   width: double.infinity,
@@ -261,37 +267,51 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     ),
                   ),
                   child: Center(
-                    child: _imageSelected
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(
-                                Icons.check_circle,
-                                color: kPrimaryColor,
-                                size: 48,
+                    child: _processingImage
+                        ? const CircularProgressIndicator()
+                        : _imageSelected && _selectedImageFile != null
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    height: 90,
+                                    child: _previewBytes != null
+                                        ? Image.memory(
+                                            _previewBytes!,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.file(
+                                            _selectedImageFile!,
+                                            fit: BoxFit.cover,
+                                          ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: _clearSelectedImage,
+                                    child: const Text(
+                                      'Eliminar imagen',
+                                      style: TextStyle(color: Colors.redAccent),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.camera_alt_outlined,
+                                    color: kPrimaryColor,
+                                    size: 42,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _processingImage
+                                        ? 'Procesando imagen...'
+                                        : 'Añadir foto del plan',
+                                    style: const TextStyle(color: kPrimaryColor),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Imagen seleccionada',
-                                style: TextStyle(color: kPrimaryColor),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.camera_alt_outlined,
-                                color: kPrimaryColor,
-                                size: 42,
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Añadir foto del plan',
-                                style: TextStyle(color: kPrimaryColor),
-                              ),
-                            ],
-                          ),
                   ),
                 ),
               ),
@@ -560,6 +580,72 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleImageSelection() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+    );
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _processingImage = true;
+    });
+
+    try {
+      final compressedBytes = await FlutterImageCompress.compressWithFile(
+        picked.path,
+        format: CompressFormat.jpeg,
+        quality: 90,
+        rotate: 0,
+      );
+
+      Uint8List previewBytes;
+      File fileForUpload;
+
+      if (compressedBytes != null && compressedBytes.isNotEmpty) {
+        previewBytes = compressedBytes;
+        final tempDir = await getTemporaryDirectory();
+        final filename = 'event_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final targetPath = p.join(tempDir.path, filename);
+        fileForUpload = await File(targetPath).writeAsBytes(
+          compressedBytes,
+          flush: true,
+        );
+      } else {
+        // Fallback: usar el archivo original
+        fileForUpload = File(picked.path);
+        previewBytes = await fileForUpload.readAsBytes();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _selectedImageFile = fileForUpload;
+        _previewBytes = previewBytes;
+        _imageSelected = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo procesar la imagen: $error')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _processingImage = false;
+      });
+    }
+  }
+
+  void _clearSelectedImage() {
+    setState(() {
+      _selectedImageFile = null;
+      _previewBytes = null;
+      _imageSelected = false;
+    });
   }
 
   // Helper para el estilo de los campos
