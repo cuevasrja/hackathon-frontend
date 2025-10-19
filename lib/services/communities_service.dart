@@ -265,7 +265,7 @@ class CommunitiesService {
     throw CommunitiesException('Error inesperado (${response.statusCode})');
   }
 
-  Future<CommunityCreationResponse> createCommunity(String name) async {
+  Future<CommunityCreationResponse> createCommunity(String name, int categoryId) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
       throw CommunitiesException('API_BASE_URL no está configurado');
@@ -288,7 +288,7 @@ class CommunitiesService {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode({'name': name.trim()}),
+            body: jsonEncode({'name': name.trim(), 'categoryId': categoryId}),
           )
           .timeout(const Duration(seconds: 15));
     } on Exception {
