@@ -1,6 +1,14 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart'; // Para usar las constantes de color
+import 'package:hackathon_frontend/models/category_model.dart';
+import 'package:hackathon_frontend/screens/auth/login.dart';
+import 'package:hackathon_frontend/services/category_service.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 
 class CreateCommunityScreen extends StatefulWidget {
   const CreateCommunityScreen({super.key});
@@ -12,28 +20,22 @@ class CreateCommunityScreen extends StatefulWidget {
 class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores y variables de estado
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _rulesController;
   late CommunitiesService _communitiesService;
+  late CategoryService _categoryService;
 
-  String? _selectedCategory;
+  int? _selectedCategoryId;
   bool _isPrivate = false;
-  bool _imageSelected = false;
   bool _isSubmitting = false;
   String? _submitError;
+  String? _categoriesError;
 
-  final List<String> _categories = [
-    'Universidad',
-    'Trabajo',
-    'Deporte',
-    'Gastronomía',
-    'Arte y Cultura',
-    'Música',
-    'Gaming',
-    'Otro',
-  ];
+  List<Category> _categories = [];
+  bool _loadingCategories = true;
+  File? _imageFile;
+  String? _imageBase64;
 
   @override
   void initState() {
@@ -42,6 +44,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     _descriptionController = TextEditingController();
     _rulesController = TextEditingController();
     _communitiesService = CommunitiesService();
+    _categoryService = CategoryService();
+    _loadCategories();
   }
 
   @override
@@ -52,7 +56,65 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     super.dispose();
   }
 
-  // --- Lógica para "crear" la comunidad ---
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _categoryService.fetchCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _loadingCategories = false;
+        _categoriesError = null;
+      });
+    } catch (error, stackTrace) {
+      developer.log(
+        '_loadCategories -> error: $error',
+        name: 'CreateCommunityScreen',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      setState(() {
+        _loadingCategories = false;
+        _categoriesError = 'No fue posible cargar las categorías.';
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      developer.log(
+        '_pickImage -> picked path: ${pickedFile.path}',
+        name: 'CreateCommunityScreen',
+      );
+      final bytes = await pickedFile.readAsBytes();
+      developer.log(
+        '_pickImage -> raw bytes length: ${bytes.length}',
+        name: 'CreateCommunityScreen',
+      );
+      final extension = p.extension(pickedFile.path).toLowerCase();
+      String mimeType = 'image/jpeg';
+      if (extension == '.png') {
+        mimeType = 'image/png';
+      } else if (extension == '.gif') {
+        mimeType = 'image/gif';
+      } else if (extension == '.webp') {
+        mimeType = 'image/webp';
+      }
+      final encoded = base64Encode(bytes);
+      developer.log(
+        '_pickImage -> encoded length: ${encoded.length}, mimeType: $mimeType',
+        name: 'CreateCommunityScreen',
+      );
+      setState(() {
+        _imageFile = File(pickedFile.path);
+        _imageBase64 = 'data:$mimeType;base64,$encoded';
+      });
+    }
+  }
+
   Future<void> _createCommunity() async {
     if (!_formKey.currentState!.validate() || _isSubmitting) {
       return;
@@ -65,9 +127,36 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       _submitError = null;
     });
 
+    final selectedCategoryId = _selectedCategoryId;
+    if (selectedCategoryId == null) {
+      setState(() {
+        _isSubmitting = false;
+        _submitError = 'Debes seleccionar una categoría.';
+      });
+      return;
+    }
+
+    developer.log(
+      '_createCommunity -> current state: name="${_nameController.text}", descriptionLength=${_descriptionController.text.length}, private=$_isPrivate, hasRules=${_rulesController.text.isNotEmpty}',
+      name: 'CreateCommunityScreen',
+    );
+    developer.log(
+      '_createCommunity -> sending name=${_nameController.text}, categoryId=$selectedCategoryId, hasImage=${_imageBase64 != null}',
+      name: 'CreateCommunityScreen',
+    );
+
     try {
       final response =
-          await _communitiesService.createCommunity(_nameController.text, _descriptionController.text);
+          await _communitiesService.createCommunity(
+        _nameController.text,
+        _descriptionController.text,
+        selectedCategoryId,
+        _imageBase64,
+      );
+      developer.log(
+        '_createCommunity -> success, communityId=${response.community.id}',
+        name: 'CreateCommunityScreen',
+      );
       if (!mounted) {
         return;
       }
@@ -79,6 +168,10 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       );
       Navigator.of(context).pop(response.community);
     } on CommunitiesException catch (e) {
+      developer.log(
+        '_createCommunity -> CommunitiesException: ${e.message}',
+        name: 'CreateCommunityScreen',
+      );
       if (!mounted) {
         return;
       }
@@ -86,7 +179,13 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         _submitError = e.message;
         _isSubmitting = false;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        '_createCommunity -> unexpected error: $error',
+        name: 'CreateCommunityScreen',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (!mounted) {
         return;
       }
@@ -126,33 +225,31 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
-
-              // --- Campo para Añadir Imagen ---
               GestureDetector(
-                onTap: () {
-                  // TODO: Lógica para abrir la galería de imágenes
-                  setState(() {
-                    _imageSelected = true;
-                  });
-                },
+                onTap: _pickImage,
                 child: Container(
                   height: 150,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: _imageSelected
-                        ? kPrimaryColor.withOpacity(0.1)
+                    color: _imageFile != null
+                        ? Colors.transparent
                         : Colors.grey[200],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kPrimaryColor.withOpacity(0.4)),
+                    border: Border.all(
+                      color: kPrimaryColor.withOpacity(0.7),
+                      width: 1.5,
+                    ),
                   ),
-                  child: Center(
-                    child: _imageSelected
-                        ? const Icon(
-                            Icons.check_circle,
-                            color: kPrimaryColor,
-                            size: 48,
-                          )
-                        : Column(
+                  child: _imageFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Image.file(
+                            _imageFile!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Center(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
                               Icon(
@@ -167,12 +264,10 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                               ),
                             ],
                           ),
-                  ),
+                        ),
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- Nombre de la Comunidad ---
               TextFormField(
                 controller: _nameController,
                 decoration: _buildInputDecoration(
@@ -184,35 +279,55 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     : null,
               ),
               const SizedBox(height: 16),
-
-              // --- Categoría ---
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: _buildInputDecoration(
-                  hintText: 'Categoría',
-                  icon: Icons.category_outlined,
+              if (_loadingCategories)
+                const Center(child: CircularProgressIndicator())
+              else if (_categoriesError != null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _categoriesError!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: _loadCategories,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kPrimaryColor,
+                        side: BorderSide(
+                          color: kPrimaryColor.withOpacity(0.5),
+                        ),
+                      ),
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                )
+              else
+                DropdownButtonFormField<int>(
+                  value: _selectedCategoryId,
+                  decoration: _buildInputDecoration(
+                    hintText: 'Categoría',
+                    icon: Icons.category_outlined,
+                  ),
+                  items: _categories.map((Category category) {
+                    return DropdownMenuItem<int>(
+                      value: category.id,
+                      child: Text(category.name),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedCategoryId = newValue;
+                    });
+                  },
+                  validator: (value) =>
+                      value == null ? 'Selecciona una categoría' : null,
                 ),
-                items: _categories.map((String category) {
-                  return DropdownMenuItem<String>(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedCategory = newValue;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'Selecciona una categoría' : null,
-              ),
               const SizedBox(height: 16),
-
-              // --- Descripción ---
               TextFormField(
                 controller: _descriptionController,
                 decoration: _buildInputDecoration(
-                  hintText: 'Describe el propósito del grupo...',
+                  hintText: 'Describe el propósito del grupo...', 
                   icon: Icons.description_outlined,
                 ),
                 maxLines: 4,
@@ -221,8 +336,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     : null,
               ),
               const SizedBox(height: 16),
-
-              // --- Reglas (Opcional) ---
               TextFormField(
                 controller: _rulesController,
                 decoration: _buildInputDecoration(
@@ -233,8 +346,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-
-              // --- Switch Público/Privado ---
               SwitchListTile(
                 title: const Text('Comunidad Privada'),
                 subtitle: const Text(
@@ -253,7 +364,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-
               if (_submitError != null) ...[
                 Text(
                   _submitError!,
@@ -261,8 +371,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-
-              // --- Botón de Crear Comunidad ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -299,7 +407,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     );
   }
 
-  // Helper para el estilo de los campos
   InputDecoration _buildInputDecoration({
     required String hintText,
     required IconData icon,

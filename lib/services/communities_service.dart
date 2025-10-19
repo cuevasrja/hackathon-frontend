@@ -203,15 +203,6 @@ class CommunitiesService {
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
 
-    developer.log(
-      'fetchCommunities <- status: ${response.statusCode}',
-      name: 'CommunitiesService',
-    );
-    developer.log(
-      'fetchCommunities <- body: ${response.body}',
-      name: 'CommunitiesService',
-    );
-
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       if (decoded is! List) {
@@ -277,6 +268,8 @@ class CommunitiesService {
   Future<CommunityCreationResponse> createCommunity(
     String name,
     String description,
+    int categoryId,
+    String? image
   ) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
@@ -291,22 +284,79 @@ class CommunitiesService {
 
     final uri = Uri.parse('$baseUrl/api/communities');
 
+    developer.log(
+      'createCommunity -> baseUrl: $baseUrl, uri: $uri',
+      name: 'CommunitiesService',
+    );
+    developer.log(
+      'createCommunity -> token present: ${token.isNotEmpty}, token length: ${token.length}',
+      name: 'CommunitiesService',
+    );
+    developer.log(
+      'createCommunity -> request params: name="$name", descriptionLength=${description.length}, categoryId=$categoryId',
+      name: 'CommunitiesService',
+    );
+
+    final payload = {
+      'name': name.trim(),
+      'description': description.trim(),
+      'categoryId': categoryId,
+    };
+
+    if (image != null && image.trim().isNotEmpty) {
+      payload['image'] = image.trim();
+      developer.log(
+        'createCommunity -> image included (length=${image.length})',
+        name: 'CommunitiesService',
+      );
+    } else {
+      developer.log(
+        'createCommunity -> image omitted',
+        name: 'CommunitiesService',
+      );
+    }
+
+    final payloadJson = jsonEncode(payload);
+    developer.log(
+      'createCommunity -> payload length=${payloadJson.length}',
+      name: 'CommunitiesService',
+    );
+    developer.log(
+      'createCommunity -> payload preview: ${payloadJson.length > 500 ? payloadJson.substring(0, 500) + "..." : payloadJson}',
+      name: 'CommunitiesService',
+    );
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+    developer.log(
+      'createCommunity -> headers: Content-Type=${headers['Content-Type']}, Authorization length=${headers['Authorization']?.length ?? 0}',
+      name: 'CommunitiesService',
+    );
+
     http.Response response;
     try {
+      final stopwatch = Stopwatch()..start();
       response = await http
           .post(
             uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({
-              'name': name.trim(),
-              'description': description.trim(),
-            }),
+            headers: headers,
+            body: payloadJson,
           )
           .timeout(const Duration(seconds: 15));
-    } on Exception {
+      stopwatch.stop();
+      developer.log(
+        'createCommunity <- response time: ${stopwatch.elapsedMilliseconds}ms',
+        name: 'CommunitiesService',
+      );
+    } on Exception catch (e, st) {
+      developer.log(
+        'createCommunity -> network/timeout exception: $e',
+        name: 'CommunitiesService',
+        error: e,
+        stackTrace: st,
+      );
       throw CommunitiesException('No fue posible conectar con el servidor');
     }
 
@@ -315,15 +365,38 @@ class CommunitiesService {
         : null;
 
     developer.log(
-      'createCommunity <- status: ${response.statusCode}, body: ${response.body}',
+      'createCommunity <- status: ${response.statusCode}, bodyLength: ${response.body.length}',
+      name: 'CommunitiesService',
+    );
+
+    developer.log(
+      'createCommunity <- raw body preview: ${response.body.length > 400 ? response.body.substring(0, 400) + "..." : response.body}',
+      name: 'CommunitiesService',
+    );
+    developer.log(
+      'createCommunity <- response headers: ${response.headers}',
       name: 'CommunitiesService',
     );
 
     if (response.statusCode == 201) {
+      developer.log(
+        'createCommunity <- decodedBody runtimeType=${decodedBody.runtimeType}',
+        name: 'CommunitiesService',
+      );
       if (decodedBody is! Map<String, dynamic>) {
+        developer.log(
+          'createCommunity <- decodedBody is not a Map: ${decodedBody.runtimeType}',
+          name: 'CommunitiesService',
+        );
         throw CommunitiesException('Respuesta inválida del servidor');
       }
-      return CommunityCreationResponse.fromJson(decodedBody);
+      try {
+        return CommunityCreationResponse.fromJson(decodedBody);
+      } catch (e, st) {
+        developer.log('createCommunity -> error parsing response: $e',
+            name: 'CommunitiesService', error: e, stackTrace: st);
+        throw CommunitiesException('Respuesta inválida del servidor');
+      }
     }
 
     if (response.statusCode == 400 || response.statusCode == 422) {
@@ -687,19 +760,26 @@ class CommunityCreationResponse {
 }
 
 class CreatedCommunity {
-  CreatedCommunity({required this.id, required this.name, required this.description});
+  CreatedCommunity({
+    required this.id,
+    required this.name,
+    required this.description,
+    this.imageUrl,
+  });
 
   factory CreatedCommunity.fromJson(Map<String, dynamic> json) {
     return CreatedCommunity(
       id: json['id'] as int,
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 
   final int id;
   final String name;
   final String description;
+  final String? imageUrl;
 }
 
 class CommunityDetail {

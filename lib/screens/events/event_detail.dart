@@ -1,7 +1,8 @@
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart';
+import 'package:hackathon_frontend/screens/auth/login.dart' hide kPrimaryColor, kBackgroundColor;
+import 'package:hackathon_frontend/utils/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EventDetailsScreen extends StatelessWidget {
@@ -17,8 +18,8 @@ class EventDetailsScreen extends StatelessWidget {
     final formattedDate = _formatDate(localTimeBegin);
     final formattedTime = _formatTime(localTimeBegin);
     final imageUrl =
+        event?.image ??
         place?.image ??
-        event.externalUrl ??
         'https://via.placeholder.com/500x300/CCCCCC/FFFFFF?text=Sin+imagen';
 
     return Scaffold(
@@ -349,7 +350,7 @@ class _ActionSection extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withAlpha((255 * 0.08).round()),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
-//import 'package:dotted_border/dotted_border.dart'; // Importamos el paquete
-import '../auth/login.dart'; // Para usar las constantes de color
+import 'package:hackathon_frontend/models/category_model.dart';
+import 'package:hackathon_frontend/services/category_service.dart';
+import '../auth/login.dart';
 import 'package:hackathon_frontend/services/event_service.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:hackathon_frontend/services/communities_service.dart';
 import 'package:hackathon_frontend/services/places_service.dart';
 
@@ -15,7 +22,6 @@ class CreateEventScreen extends StatefulWidget {
 class _CreateEventScreenState extends State<CreateEventScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores y variables de estado
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
   late TextEditingController _locationController;
@@ -24,12 +30,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   late TextEditingController _externalUrlController;
 
   DateTime? _selectedDate;
-  String? _selectedCategory;
+  int? _selectedCategoryId;
   bool _isPrivate = false;
   bool _submitting = false;
-  // En un app real, aquí guardarías el archivo de imagen.
-  // Por ahora, simulamos que se ha seleccionado una.
   bool _imageSelected = false;
+  bool _processingImage = false;
+  File? _selectedImageFile;
+  Uint8List? _previewBytes;
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<CommunitySummary> _communities = [];
   int? _selectedCommunityId;
@@ -37,15 +45,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   int? _selectedPlaceId;
   bool _loadingPlaces = true;
 
-  final List<String> _categories = [
-    'Gastronomía',
-    'Deporte',
-    'Fiesta',
-    'Cultural',
-    'Aire Libre',
-    'Cine',
-    'Otro',
-  ];
+  final CategoryService _categoryService = CategoryService();
+  List<Category> _categories = [];
+  bool _loadingCategories = true;
 
   @override
   void initState() {
@@ -56,8 +58,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _participantsController = TextEditingController();
     _minAgeController = TextEditingController();
     _externalUrlController = TextEditingController();
+    _loadInitialData();
+  }
+
+  void _loadInitialData() {
     _loadCommunities();
     _loadPlaces();
+    _loadCategories();
   }
 
   @override
@@ -71,7 +78,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     super.dispose();
   }
 
-  // --- Lógica para seleccionar fecha y hora ---
   Future<void> _pickDate() async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -95,6 +101,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           );
         });
       }
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _categoryService.fetchCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _loadingCategories = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCategories = false;
+      });
     }
   }
 
@@ -147,7 +169,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       );
       return;
     }
-
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona una categoría')),
+      );
+      return;
+    }
     if (!_isPrivate && _selectedCommunityId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -156,7 +183,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       );
       return;
     }
-
     if (_selectedPlaceId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecciona un lugar para el evento')),
@@ -177,15 +203,16 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         name: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         timeBegin: _selectedDate!,
-        timeEnd: null,
         placeId: _selectedPlaceId!,
+        categoryId: _selectedCategoryId, // Pass the selected category ID
+
         minAge: minAge,
-        status: null,
         visibility: _isPrivate ? 'PRIVATE' : 'PUBLIC',
         communityId: _selectedCommunityId,
         externalUrl: _externalUrlController.text.trim().isEmpty
             ? null
             : _externalUrlController.text.trim(),
+        imageFile: _selectedImageFile,
       );
 
       if (!mounted) return;
@@ -238,15 +265,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
-
-              // --- Campo para Añadir Imagen ---
               GestureDetector(
-                onTap: () {
-                  // TODO: Lógica para abrir la galería de imágenes
-                  setState(() {
-                    _imageSelected = true;
-                  });
-                },
+                onTap: _processingImage ? null : _handleImageSelection,
                 child: Container(
                   height: 160,
                   width: double.infinity,
@@ -261,43 +281,55 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     ),
                   ),
                   child: Center(
-                    child: _imageSelected
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(
-                                Icons.check_circle,
-                                color: kPrimaryColor,
-                                size: 48,
+                    child: _processingImage
+                        ? const CircularProgressIndicator()
+                        : _imageSelected && _selectedImageFile != null
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    height: 90,
+                                    child: _previewBytes != null
+                                        ? Image.memory(
+                                            _previewBytes!,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Image.file(
+                                            _selectedImageFile!,
+                                            fit: BoxFit.cover,
+                                          ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: _clearSelectedImage,
+                                    child: const Text(
+                                      'Eliminar imagen',
+                                      style: TextStyle(color: Colors.redAccent),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.camera_alt_outlined,
+                                    color: kPrimaryColor,
+                                    size: 42,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _processingImage
+                                        ? 'Procesando imagen...'
+                                        : 'Añadir foto del plan',
+                                    style: const TextStyle(color: kPrimaryColor),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Imagen seleccionada',
-                                style: TextStyle(color: kPrimaryColor),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.camera_alt_outlined,
-                                color: kPrimaryColor,
-                                size: 42,
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Añadir foto del plan',
-                                style: TextStyle(color: kPrimaryColor),
-                              ),
-                            ],
-                          ),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- Título del Plan ---
               TextFormField(
                 controller: _titleController,
                 decoration: _buildInputDecoration(
@@ -309,8 +341,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     : null,
               ),
               const SizedBox(height: 16),
-
-              // --- Descripción ---
               TextFormField(
                 controller: _descriptionController,
                 decoration: _buildInputDecoration(
@@ -323,31 +353,30 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     : null,
               ),
               const SizedBox(height: 16),
-
-              // --- Categoría ---
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: _buildInputDecoration(
-                  hintText: 'Categoría',
-                  icon: Icons.category_outlined,
+              if (_loadingCategories)
+                const Center(child: CircularProgressIndicator())
+              else
+                DropdownButtonFormField<int>(
+                  value: _selectedCategoryId,
+                  decoration: _buildInputDecoration(
+                    hintText: 'Categoría',
+                    icon: Icons.category_outlined,
+                  ),
+                  items: _categories.map((Category category) {
+                    return DropdownMenuItem<int>(
+                      value: category.id,
+                      child: Text(category.name),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedCategoryId = newValue;
+                    });
+                  },
+                  validator: (value) =>
+                      value == null ? 'Selecciona una categoría' : null,
                 ),
-                items: _categories.map((String category) {
-                  return DropdownMenuItem<String>(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedCategory = newValue;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'Selecciona una categoría' : null,
-              ),
               const SizedBox(height: 16),
-
-              // --- Fecha y Hora ---
               GestureDetector(
                 onTap: _pickDate,
                 child: InputDecorator(
@@ -369,7 +398,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
               DropdownButtonFormField<int>(
                 value: _selectedCommunityId,
                 decoration: _buildInputDecoration(
@@ -397,7 +425,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               if (_loadingPlaces)
                 const Center(
                   child: Padding(
@@ -445,8 +472,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       value == null ? 'Selecciona un lugar' : null,
                 ),
               const SizedBox(height: 16),
-
-              // --- Ubicación y Participantes (en una fila) ---
               Row(
                 children: [
                   Expanded(
@@ -478,7 +503,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _minAgeController,
                 decoration: _buildInputDecoration(
@@ -495,7 +519,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _externalUrlController,
                 decoration: _buildInputDecoration(
@@ -505,8 +528,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 16),
-
-              // --- Switch Público/Privado ---
               SwitchListTile(
                 title: const Text('Plan Privado'),
                 subtitle: const Text(
@@ -521,8 +542,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 activeColor: kPrimaryColor,
               ),
               const SizedBox(height: 32),
-
-              // --- Botón de Crear Plan ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -560,6 +579,72 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleImageSelection() async {
+    final picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+    );
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _processingImage = true;
+    });
+
+    try {
+      final compressedBytes = await FlutterImageCompress.compressWithFile(
+        picked.path,
+        format: CompressFormat.jpeg,
+        quality: 90,
+        rotate: 0,
+      );
+
+      Uint8List previewBytes;
+      File fileForUpload;
+
+      if (compressedBytes != null && compressedBytes.isNotEmpty) {
+        previewBytes = compressedBytes;
+        final tempDir = await getTemporaryDirectory();
+        final filename = 'event_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final targetPath = p.join(tempDir.path, filename);
+        fileForUpload = await File(targetPath).writeAsBytes(
+          compressedBytes,
+          flush: true,
+        );
+      } else {
+        // Fallback: usar el archivo original
+        fileForUpload = File(picked.path);
+        previewBytes = await fileForUpload.readAsBytes();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _selectedImageFile = fileForUpload;
+        _previewBytes = previewBytes;
+        _imageSelected = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo procesar la imagen: $error')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _processingImage = false;
+      });
+    }
+  }
+
+  void _clearSelectedImage() {
+    setState(() {
+      _selectedImageFile = null;
+      _previewBytes = null;
+      _imageSelected = false;
+    });
   }
 
   // Helper para el estilo de los campos

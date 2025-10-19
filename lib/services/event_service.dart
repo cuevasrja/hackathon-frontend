@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
@@ -6,6 +8,7 @@ import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as img;
 
 class EventService {
   EventService();
@@ -75,11 +78,13 @@ class EventService {
     required DateTime timeBegin,
     DateTime? timeEnd,
     required int placeId,
+    int? categoryId, // Add this
     int? minAge,
     String? status,
     required String visibility,
     int? communityId,
     String? externalUrl,
+    File? imageFile,
   }) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
@@ -103,6 +108,35 @@ class EventService {
 
     final uri = Uri.parse('$baseUrl/api/events');
 
+    String? imageBase64;
+    if (imageFile != null) {
+      try {
+        final rawBytes = await imageFile.readAsBytes();
+        developer.log(
+          'createEvent -> imageFile path=${imageFile.path}, raw length=${rawBytes.length}',
+          name: 'EventService',
+        );
+        final decoded = img.decodeImage(rawBytes);
+        final processedBytes = decoded != null
+            ? img.encodeJpg(decoded, quality: 90)
+            : rawBytes;
+        imageBase64 = base64Encode(processedBytes);
+        developer.log(
+          'createEvent -> processed image length=${processedBytes.length}, base64 length=${imageBase64.length}',
+          name: 'EventService',
+        );
+      } on Exception catch (err, st) {
+        developer.log('createEvent -> error processing image: $err',
+            name: 'EventService', error: err, stackTrace: st);
+        final fallbackBytes = await imageFile.readAsBytes();
+        imageBase64 = base64Encode(fallbackBytes);
+        developer.log(
+          'createEvent -> fallback base64 length=${imageBase64.length}',
+          name: 'EventService',
+        );
+      }
+    }
+
     final payload = <String, dynamic>{
       'name': name.trim(),
       'description': description.trim(),
@@ -111,6 +145,7 @@ class EventService {
       'visibility': visibility,
       'placeId': placeId,
       'organizerId': organizerId,
+      'image': imageBase64 ?? '',
     };
 
     if (minAge != null) {
@@ -129,17 +164,31 @@ class EventService {
       payload['externalUrl'] = externalUrl.trim();
     }
 
+    developer.log('createEvent -> payload: ${jsonEncode(payload)}', name: 'EventService');
+
+    if (categoryId != null) {
+      payload['categoryId'] = categoryId;
+    }
+
     http.Response response;
-    response = await http
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(payload),
-        )
-        .timeout(const Duration(seconds: 15));
+    try {
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception catch (error) {
+      developer.log(
+        'createEvent -> error al ejecutar POST: $error',
+        name: 'EventService',
+      );
+      throw EventException('No fue posible conectar con el servidor');
+    }
 
     final decodedBody = response.body.isNotEmpty
         ? jsonDecode(response.body)
@@ -156,6 +205,9 @@ class EventService {
     }
 
     if (response.statusCode == 400 || response.statusCode == 422) {
+      print(decodedBody);
+      print("Response Body: ${response.body}");
+      print("Response Status: ${response.statusCode}");
       final message = decodedBody is Map<String, dynamic>
           ? decodedBody['message'] as String? ?? 'Datos inválidos'
           : 'Datos inválidos';

@@ -276,7 +276,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
             Hero(
               tag: 'event-hero-${event.id}',
               child: Image.network(
-                event.place?.image ?? event.externalUrl ?? 'https://via.placeholder.com/300x150/CCCCCC/FFFFFF?text=No+Image',
+                event?.image ?? event.place?.image ?? 'https://via.placeholder.com/300x150/CCCCCC/FFFFFF?text=No+Image',
                 width: double.infinity,
                 height: 150,
                 fit: BoxFit.cover,
