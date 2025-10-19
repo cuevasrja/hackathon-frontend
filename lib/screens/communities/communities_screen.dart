@@ -6,6 +6,7 @@ import 'package:hackathon_frontend/screens/communities/community_detail.dart'
 import 'package:hackathon_frontend/screens/communities/create_community.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
 
 // --- 2. Pantalla Principal de Comunidades ---
 class CommunitiesScreen extends StatefulWidget {
@@ -392,6 +393,8 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
+          // Log the values of community when the card is tapped
+          developer.log('Community card tapped: ' + community.toString(), name: 'CommunitySummary');
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) =>

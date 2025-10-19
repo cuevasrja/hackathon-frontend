@@ -1,5 +1,5 @@
 import 'dart:developer' as developer;
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
@@ -1026,8 +1026,24 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         if (member == null) {
           return const SizedBox.shrink();
         }
-        final name = member['name'] as String? ?? 'Miembro sin nombre';
-        final email = member['email'] as String? ?? '';
+
+        developer.log(
+          'Miembro #$index: ${jsonEncode(member)}',
+          name: 'CommunityDetailsScreen',
+        );
+
+
+    // member is a Map; the user info may be under the 'user' key or top-level keys
+    final userObj = member['user'] is Map<String, dynamic>
+      ? (member['user'] as Map<String, dynamic>)
+      : null;
+    final String? nameFromUser = userObj != null ? userObj['name'] as String? : null;
+    final String? nameFromMember = member['name'] as String?;
+    final String name = (nameFromUser ?? nameFromMember) ?? 'Miembro sin nombre';
+
+    final String? emailFromUser = userObj != null ? userObj['email'] as String? : null;
+    final String? emailFromMember = member['email'] as String?;
+    final String email = (emailFromUser ?? emailFromMember) ?? '';
 
         return ListTile(
           leading: CircleAvatar(
