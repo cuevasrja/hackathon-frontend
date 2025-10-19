@@ -1,6 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../auth/login.dart'; // Para las constantes de color
+import 'package:hackathon_frontend/models/ai_audio_reply.dart';
 import 'package:hackathon_frontend/services/ai_chat_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // --- Modelo de Datos para un Mensaje del Chat ---
 class ChatMessage {
@@ -25,10 +31,19 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   bool _isLoading = false;
   final AIChatService _aiChatService = const AIChatService();
   String? _conversationId;
+  final RecorderController _recorderController = RecorderController();
+  bool _isRecordingAudio = false;
+  String? _currentRecordingPath;
 
   @override
   void initState() {
     super.initState();
+    _recorderController
+      ..androidEncoder = AndroidEncoder.aac
+      ..androidOutputFormat = AndroidOutputFormat.mpeg4
+      ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+      ..sampleRate = 44100
+      ..bitRate = 128000;
     // Mensaje de bienvenida de la IA al abrir el chat
     _messages.add(
       ChatMessage(
@@ -43,6 +58,7 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
+    _recorderController.dispose();
     super.dispose();
   }
 
@@ -110,6 +126,137 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
     }
   }
 
+  Future<String> _createRecordingPath() async {
+    final directory = await getTemporaryDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final separator = Platform.pathSeparator;
+    final fileName = 'plania_voice_$timestamp.m4a';
+    return '${directory.path}$separator$fileName';
+  }
+
+  Future<bool> _ensureMicrophonePermission() async {
+    PermissionStatus status = await Permission.microphone.status;
+    if (status.isPermanentlyDenied) {
+      if (!mounted) {
+        return false;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Activa el permiso de micrófono en la configuración para grabar notas de voz.',
+          ),
+          action: SnackBarAction(
+            label: 'Abrir',
+            textColor: Colors.white,
+            onPressed: () {
+              openAppSettings();
+            },
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return false;
+    }
+
+    if (!status.isGranted) {
+      status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        if (!mounted) {
+          return false;
+        }
+        final isDeniedForever = status.isPermanentlyDenied;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isDeniedForever
+                  ? 'Debes habilitar el micrófono desde configuración para grabar.'
+                  : 'Se requieren permisos de micrófono para grabar.',
+            ),
+            action: isDeniedForever
+                ? SnackBarAction(
+                    label: 'Abrir',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      openAppSettings();
+                    },
+                  )
+                : null,
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  Future<void> _toggleAudioRecording() async {
+    if (_isLoading) {
+      return;
+    }
+
+    try {
+      if (_isRecordingAudio) {
+        final result = await _recorderController.stop();
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _isRecordingAudio = false;
+        });
+        final recordedPath =
+            (result != null && result.trim().isNotEmpty)
+                ? result
+                : _currentRecordingPath;
+        _currentRecordingPath = null;
+        if (recordedPath == null || recordedPath.trim().isEmpty) {
+          return;
+        }
+        final parts = recordedPath.split(RegExp(r'[\\/]'));
+        final derivedFileName =
+            parts.isNotEmpty && parts.last.isNotEmpty ? parts.last : null;
+        await _handleAudioMessage(
+          recordedPath,
+          fileName: derivedFileName,
+        );
+      } else {
+        final outputPath = await _createRecordingPath();
+        final hasPermission = await _ensureMicrophonePermission();
+        if (!hasPermission) {
+          return;
+        }
+
+        await _recorderController.record(path: outputPath);
+
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _isRecordingAudio = true;
+          _currentRecordingPath = outputPath;
+        });
+      }
+    } on Exception catch (e) {
+      try {
+        await _recorderController.stop();
+      } catch (_) {}
+      _currentRecordingPath = null;
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isRecordingAudio = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo grabar audio: ${e.toString()}'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   void _sendSuggestedPrompt(String text) {
     if (_isLoading) {
       return;
@@ -124,6 +271,80 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
     });
     _scrollToBottom();
     _getAIResponse(text);
+  }
+
+  Future<void> _handleAudioMessage(
+    String audioFilePath, {
+    String? fileName,
+    bool resetConversation = false,
+  }) async {
+    if (_isLoading) {
+      return;
+    }
+
+    final path = audioFilePath.trim();
+    if (path.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
+    try {
+      final AIAudioReply reply = await _aiChatService.sendAudioMessage(
+        audioFilePath: path,
+        fileName: fileName,
+        conversationId: _conversationId,
+        resetConversation: resetConversation,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        final response = reply.response.trim();
+        _conversationId = reply.conversationId ?? _conversationId;
+        if (response.isNotEmpty) {
+          _messages.add(ChatMessage(text: response, isUser: false));
+        }
+      });
+    } on AIChatException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _messages.add(ChatMessage(text: e.message, isUser: false));
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      const fallback = 'Ocurrió un error al procesar el audio.';
+      setState(() {
+        _messages.add(ChatMessage(text: fallback, isUser: false));
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo procesar el audio.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoading = false;
+      });
+      _scrollToBottom();
+    }
   }
 
   // Mueve el scroll hasta el final de la lista
@@ -298,6 +519,19 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
       child: SafeArea(
         child: Row(
           children: [
+            CircleAvatar(
+              backgroundColor:
+                  _isRecordingAudio ? Colors.redAccent : kPrimaryColor,
+              child: IconButton(
+                icon: Icon(
+                  _isRecordingAudio ? Icons.stop : Icons.mic,
+                  color: Colors.white,
+                ),
+                onPressed:
+                    _isLoading ? null : () => _toggleAudioRecording(),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _textController,
