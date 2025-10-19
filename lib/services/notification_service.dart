@@ -28,7 +28,6 @@ class NotificationService {
     final response = await _makeAuthenticatedRequest((headers) => http.get(url, headers: headers));
 
     if (response.statusCode == 200) {
-      print('Response body: ${response.body}'); // Debugging line
       final List<dynamic> data = json.decode(response.body);
       return data.map((item) => Notification.fromJson(item)).toList();
     } else {
@@ -38,7 +37,7 @@ class NotificationService {
 
   Future<void> markAllAsRead() async {
     final url = Uri.parse('$_baseUrl/api/notifications/mark-all-read');
-    final response = await _makeAuthenticatedRequest((headers) => http.post(url, headers: headers));
+    final response = await _makeAuthenticatedRequest((headers) => http.put(url, headers: headers));
 
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Failed to mark all notifications as read');

@@ -13,7 +13,7 @@ class NotificationListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: notification.read ? Colors.grey : Theme.of(context).primaryColor,
+        backgroundColor: notification.read ? Theme.of(context).primaryColor : Colors.grey,
         child: const Icon(Icons.notifications, color: Colors.white),
       ),
       title: Text(notification.title),
