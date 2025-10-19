@@ -123,10 +123,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
       );
     } catch (_) {
       if (!mounted) {
@@ -188,7 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _nameController,
                     keyboardType: TextInputType.name,
                     decoration: _buildInputDecoration(
-                      hintText: 'Nombre Completo',
+                      hintText: 'Nombre',
                       prefixIcon: Icons.person_outline,
                     ),
                     validator: (value) {
@@ -413,8 +410,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text(

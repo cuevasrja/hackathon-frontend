@@ -216,6 +216,89 @@ class AIChatService {
     throw AIChatException('Error inesperado (${response.statusCode})');
   }
 
+  Future<AIAudioReply> sendAudioFromUrl({
+    required String audioUrl,
+    String? fileName,
+    String? conversationId,
+    bool resetConversation = false,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw AIChatException('API_BASE_URL no está configurado');
+    }
+
+    if (audioUrl.trim().isEmpty) {
+      throw AIChatException('URL del archivo de audio requerida');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw AIChatException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/ai/audio');
+
+    final resolvedFileName = (fileName != null && fileName.isNotEmpty)
+        ? fileName
+        : 'audio.webm';
+
+    http.StreamedResponse streamedResponse;
+    try {
+      final audioBytes = await http.readBytes(Uri.parse(audioUrl));
+
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bearer $token'
+        ..files.add(
+          http.MultipartFile.fromBytes(
+            'audio',
+            audioBytes,
+            filename: resolvedFileName,
+            contentType: MediaType('audio', 'webm'),
+          ),
+        );
+
+      if (conversationId != null && conversationId.isNotEmpty) {
+        request.fields['conversationId'] = conversationId;
+      }
+
+      if (resetConversation) {
+        request.fields['resetConversation'] = 'true';
+      }
+
+      streamedResponse = await request.send().timeout(
+        const Duration(seconds: 45),
+      );
+    } on Exception {
+      throw AIChatException('No fue posible conectar con el servidor');
+    }
+
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
+      return _parseAudioResponse(decoded);
+    }
+
+    if (response.statusCode == 401) {
+      throw AIChatException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    if (response.statusCode == 400 || response.statusCode == 422) {
+      final decoded = response.body.isNotEmpty
+          ? jsonDecode(response.body)
+          : null;
+      final message = decoded is Map<String, dynamic>
+          ? decoded['message'] as String? ?? 'Solicitud inválida'
+          : 'Solicitud inválida';
+      throw AIChatException(message);
+    }
+
+    throw AIChatException('Error inesperado (${response.statusCode})');
+  }
+
   AIChatReply _parseResponse(dynamic decoded) {
     if (decoded is String) {
       return AIChatReply(message: decoded);
