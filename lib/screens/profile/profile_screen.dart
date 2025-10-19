@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 import 'package:hackathon_frontend/services/profile_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hackathon_frontend/screens/profile/change_password_screen.dart';
@@ -55,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final user = await _profileService.fetchUser(userId);
+  final user = await _profileService.fetchUser(userId);
 
       if (!mounted) return;
 
@@ -88,9 +89,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+  developer.log('[ProfileScreen] _profileImageUrl: $_profileImageUrl');
+  return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
