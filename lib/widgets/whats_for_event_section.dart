@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/models/event_response_model.dart';
@@ -17,6 +18,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
   late Future<List<Meal>> _eventMealsFuture;
   final EventService _eventService = EventService();
   List<Event> _events = [];
+  bool _hasPrefetchedEvents = false;
 
   @override
   void initState() {
@@ -40,6 +42,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
 
     if (mounted) {
       setState(() => _events = events);
+      _prefetchEventImages(events);
     }
 
     return events.map(_mapEventToMeal).toList();
@@ -58,6 +61,24 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
       description: truncatedSubtitle,
       imagePath: imagePath,
     );
+  }
+
+  void _prefetchEventImages(List<Event> events) {
+    if (_hasPrefetchedEvents || !mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      for (final event in events) {
+        final imageUrl = event.image;
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          precacheImage(CachedNetworkImageProvider(imageUrl), context);
+        }
+      }
+    });
+    _hasPrefetchedEvents = true;
   }
 
   @override

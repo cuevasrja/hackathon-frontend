@@ -1,9 +1,8 @@
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart'
-    hide kPrimaryColor, kBackgroundColor;
 import 'package:hackathon_frontend/utils/colors.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EventDetailsScreen extends StatelessWidget {
@@ -19,7 +18,7 @@ class EventDetailsScreen extends StatelessWidget {
     final formattedDate = _formatDate(localTimeBegin);
     final formattedTime = _formatTime(localTimeBegin);
     final imageUrl =
-        event?.image ??
+        event.image ??
         place?.image ??
         'https://via.placeholder.com/500x300/CCCCCC/FFFFFF?text=Sin+imagen';
 
@@ -80,6 +79,29 @@ class EventDetailsScreen extends StatelessWidget {
               label: place?.direction ?? place?.name ?? 'Sin ubicación',
               trailing: TextButton.icon(
                 onPressed: () async {
+                  String? address;
+                  final direction = place?.direction.trim();
+                  if (direction != null && direction.isNotEmpty) {
+                    address = direction;
+                  } else {
+                    final placeName = place?.name.trim();
+                    if (placeName != null && placeName.isNotEmpty) {
+                      address = placeName;
+                    }
+                  }
+
+                  if (address != null && address.isNotEmpty) {
+                    await Clipboard.setData(ClipboardData(text: address));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        const SnackBar(
+                          content: Text('Dirección copiada al portapapeles'),
+                        ),
+                      );
+                  }
+
                   // 1. Define el esquema de URL para la app
                   // (Este es un esquema común, podría ser 'yummy://' o 'yummyrides://')
                   final platform = Theme.of(context).platform;

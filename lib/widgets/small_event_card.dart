@@ -1,18 +1,26 @@
-import 'dart:developer' as developer;
-
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 
-class SmallEventCard extends StatelessWidget {
+class SmallEventCard extends StatefulWidget {
+  const SmallEventCard({super.key, required this.event, this.onTap});
+
   final Event event;
   final VoidCallback? onTap;
 
-  const SmallEventCard({super.key, required this.event, this.onTap});
+  @override
+  State<SmallEventCard> createState() => _SmallEventCardState();
+}
 
+class _SmallEventCardState extends State<SmallEventCard>
+    with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final event = widget.event;
+
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -56,30 +64,60 @@ class SmallEventCard extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
 
-class _EventImage extends StatelessWidget {
+class _EventImage extends StatefulWidget {
   const _EventImage({this.image});
 
   final String? image;
 
   @override
+  State<_EventImage> createState() => _EventImageState();
+}
+
+class _EventImageState extends State<_EventImage>
+    with AutomaticKeepAliveClientMixin {
+  CachedNetworkImageProvider? _provider;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateProvider();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EventImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.image != widget.image) {
+      _updateProvider();
+    }
+  }
+
+  void _updateProvider() {
+    final url = widget.image;
+    if (url != null && url.isNotEmpty) {
+      _provider = CachedNetworkImageProvider(url);
+    } else {
+      _provider = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Log del valor de image para depuración
-    developer.log(
-      'Valor de image en _EventImage: '
-      '${image?.substring(0, image!.length > 100 ? 100 : image!.length)}',
-      name: '_EventImage',
-    );
-    if (image == null || image!.isEmpty) {
+    super.build(context);
+    if (_provider == null) {
       return _defaultImage();
     }
 
-    return Image.network(
-      image!,
+    return Image(
+      image: _provider!,
       height: 120,
       width: 150,
       fit: BoxFit.cover,
+      gaplessPlayback: true,
       errorBuilder: (_, __, ___) => _defaultImage(),
     );
   }
@@ -92,4 +130,7 @@ class _EventImage extends StatelessWidget {
       fit: BoxFit.cover,
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/services/places_service.dart';
 
@@ -140,29 +141,7 @@ class _PlaceImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      return Container(
-        height: 120,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          Icons.store_mall_directory,
-          color: Theme.of(context).colorScheme.primary,
-          size: 48,
-        ),
-      );
-    }
-
-    return Image.network(
-      imageUrl!,
-      height: 120,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) {
-        return Container(
+    Widget placeholder() => Container(
           height: 120,
           width: double.infinity,
           decoration: BoxDecoration(
@@ -175,7 +154,22 @@ class _PlaceImage extends StatelessWidget {
             size: 48,
           ),
         );
-      },
+
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return placeholder();
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl!,
+      height: 120,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => Container(
+        height: 120,
+        width: double.infinity,
+        color: Colors.grey[200],
+      ),
+      errorWidget: (_, __, ___) => placeholder(),
     );
   }
 }
