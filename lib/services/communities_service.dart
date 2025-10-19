@@ -552,6 +552,93 @@ class CommunitiesService {
         : 'No fue posible enviar la solicitud de ingreso a la comunidad';
     throw CommunitiesException(message);
   }
+
+  Future<void> approveCommunityJoinRequest({
+    required int communityId,
+    required int requestId,
+  }) async {
+    await _processJoinRequestAction(
+      communityId: communityId,
+      requestId: requestId,
+      endpoint: 'approve',
+      successMessage: 'Solicitud aprobada',
+    );
+  }
+
+  Future<void> rejectCommunityJoinRequest({
+    required int communityId,
+    required int requestId,
+  }) async {
+    await _processJoinRequestAction(
+      communityId: communityId,
+      requestId: requestId,
+      endpoint: 'reject',
+      successMessage: 'Solicitud rechazada',
+    );
+  }
+
+  Future<void> _processJoinRequestAction({
+    required int communityId,
+    required int requestId,
+    required String endpoint,
+    required String successMessage,
+  }) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw CommunitiesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw CommunitiesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse(
+      '$baseUrl/api/communities/$communityId/requests/$requestId/$endpoint',
+    );
+
+    http.Response response;
+    try {
+      developer.log(
+        '_processJoinRequestAction -> POST $uri',
+        name: 'CommunitiesService',
+      );
+      response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw CommunitiesException('No fue posible conectar con el servidor');
+    }
+
+    developer.log(
+      '_processJoinRequestAction <- status: ${response.statusCode}, body: ${response.body}',
+      name: 'CommunitiesService',
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return;
+    }
+
+    if (response.statusCode == 401) {
+      throw CommunitiesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+    final message = decoded is Map<String, dynamic>
+        ? (decoded['message'] as String?) ??
+            (decoded['error'] as String?) ??
+            successMessage
+        : successMessage;
+
+    throw CommunitiesException(message);
+  }
 }
 
 class CommunityCreationResponse {

@@ -42,6 +42,7 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
   List<CommunityJoinRequest> _requests = [];
   bool _isLoading = true;
   String? _errorMessage;
+  final Set<int> _processingRequests = {};
 
   @override
   void initState() {
@@ -81,6 +82,78 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
       setState(() {
         _errorMessage = 'No fue posible cargar las solicitudes.';
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleRequestAction({
+    required CommunityJoinRequest request,
+    required bool approve,
+  }) async {
+    if (_processingRequests.contains(request.id)) {
+      return;
+    }
+
+    setState(() {
+      _processingRequests.add(request.id);
+    });
+
+    try {
+      if (approve) {
+        await widget.service.approveCommunityJoinRequest(
+          communityId: widget.communityId,
+          requestId: request.id,
+        );
+      } else {
+        await widget.service.rejectCommunityJoinRequest(
+          communityId: widget.communityId,
+          requestId: request.id,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve
+                ? 'Solicitud aprobada correctamente.'
+                : 'Solicitud rechazada correctamente.',
+          ),
+        ),
+      );
+
+      await _loadRequests();
+    } on CommunitiesException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve
+                ? 'No fue posible aprobar la solicitud.'
+                : 'No fue posible rechazar la solicitud.',
+          ),
+        ),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _processingRequests.remove(request.id);
       });
     }
   }
@@ -196,6 +269,73 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
                   Text(
                     'Estado: ${request.status}',
                     style: const TextStyle(color: Colors.black54),
+                  ),
+                if (request.status == null || request.status == 'PENDING')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _processingRequests.contains(request.id)
+                                ? null
+                                : () => _handleRequestAction(
+                                      request: request,
+                                      approve: true,
+                                    ),
+                            icon: _processingRequests.contains(request.id)
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color?>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(Icons.check, color: Colors.white),
+                            label: const Text('Aceptar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _processingRequests.contains(request.id)
+                                ? null
+                                : () => _handleRequestAction(
+                                      request: request,
+                                      approve: false,
+                                    ),
+                            icon: _processingRequests.contains(request.id)
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color?>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(Icons.close, color: Colors.white),
+                            label: const Text('Rechazar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
