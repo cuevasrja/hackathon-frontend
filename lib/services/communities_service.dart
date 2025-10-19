@@ -17,6 +17,7 @@ class CommunitySummary {
     this.imageUrl,
     this.isPrivate,
     this.createdById,
+    this.pendingRequestsDelta = 0,
   });
 
   factory CommunitySummary.fromJson(Map<String, dynamic> json) {
@@ -31,6 +32,7 @@ class CommunitySummary {
       imageUrl: json['imageUrl'] as String?,
       isPrivate: json['isPrivate'] as bool?,
       createdById: _parseCreatedById(json),
+      pendingRequestsDelta: 0,
     );
   }
 
@@ -43,6 +45,7 @@ class CommunitySummary {
   final String? imageUrl;
   final bool? isPrivate;
   final int? createdById;
+  final int pendingRequestsDelta;
 
   static int? _parseCreatedById(Map<String, dynamic> json) {
     final rawCreatedById = json['createdById'];
@@ -553,11 +556,11 @@ class CommunitiesService {
     throw CommunitiesException(message);
   }
 
-  Future<void> approveCommunityJoinRequest({
+  Future<CommunityRequestsDelta> approveCommunityJoinRequest({
     required int communityId,
     required int requestId,
   }) async {
-    await _processJoinRequestAction(
+    return _processJoinRequestAction(
       communityId: communityId,
       requestId: requestId,
       endpoint: 'approve',
@@ -565,11 +568,11 @@ class CommunitiesService {
     );
   }
 
-  Future<void> rejectCommunityJoinRequest({
+  Future<CommunityRequestsDelta> rejectCommunityJoinRequest({
     required int communityId,
     required int requestId,
   }) async {
-    await _processJoinRequestAction(
+    return _processJoinRequestAction(
       communityId: communityId,
       requestId: requestId,
       endpoint: 'reject',
@@ -577,7 +580,7 @@ class CommunitiesService {
     );
   }
 
-  Future<void> _processJoinRequestAction({
+  Future<CommunityRequestsDelta> _processJoinRequestAction({
     required int communityId,
     required int requestId,
     required String endpoint,
@@ -623,7 +626,14 @@ class CommunitiesService {
     );
 
     if (response.statusCode == 200 || response.statusCode == 204) {
-      return;
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : null;
+      final requestsRemaining = decoded is Map<String, dynamic>
+          ? decoded['pendingRequests'] as int?
+          : null;
+      return CommunityRequestsDelta(
+        communityId: communityId,
+        pendingRequests: requestsRemaining,
+      );
     }
 
     if (response.statusCode == 401) {
@@ -639,6 +649,16 @@ class CommunitiesService {
 
     throw CommunitiesException(message);
   }
+}
+
+class CommunityRequestsDelta {
+  CommunityRequestsDelta({
+    required this.communityId,
+    this.pendingRequests,
+  });
+
+  final int communityId;
+  final int? pendingRequests;
 }
 
 class CommunityCreationResponse {

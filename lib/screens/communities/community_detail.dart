@@ -125,7 +125,9 @@ class _CommunityRequestsScreenState extends State<CommunityRequestsScreen> {
         ),
       );
 
-      await _loadRequests();
+      setState(() {
+        _requests.removeWhere((element) => element.id == request.id);
+      });
     } on CommunitiesException catch (e) {
       if (!mounted) {
         return;
