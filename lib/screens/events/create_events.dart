@@ -356,25 +356,32 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               if (_loadingCategories)
                 const Center(child: CircularProgressIndicator())
               else
-                DropdownButtonFormField<int>(
-                  value: _selectedCategoryId,
-                  decoration: _buildInputDecoration(
-                    hintText: 'Categoría',
-                    icon: Icons.category_outlined,
-                  ),
-                  items: _categories.map((Category category) {
-                    return DropdownMenuItem<int>(
-                      value: category.id,
-                      child: Text(category.name),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      _selectedCategoryId = newValue;
-                    });
-                  },
-                  validator: (value) =>
-                      value == null ? 'Selecciona una categoría' : null,
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: _selectedCategoryId,
+                        isExpanded: true,
+                        decoration: _buildInputDecoration(
+                          hintText: 'Categoría',
+                          icon: Icons.category_outlined,
+                        ),
+                        items: _categories.map((Category category) {
+                          return DropdownMenuItem<int>(
+                            value: category.id,
+                            child: Text(category.name, overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          setState(() {
+                            _selectedCategoryId = newValue;
+                          });
+                        },
+                        validator: (value) =>
+                            value == null ? 'Selecciona una categoría' : null,
+                      ),
+                    ),
+                  ],
                 ),
               const SizedBox(height: 16),
               GestureDetector(
@@ -398,31 +405,38 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<int>(
-                value: _selectedCommunityId,
-                decoration: _buildInputDecoration(
-                  hintText: 'Comunidad',
-                  icon: Icons.groups_outlined,
-                ),
-                items: _communities
-                    .map(
-                      (c) => DropdownMenuItem<int>(
-                        value: c.id,
-                        child: Text(c.name),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: _selectedCommunityId,
+                      isExpanded: true,
+                      decoration: _buildInputDecoration(
+                        hintText: 'Comunidad',
+                        icon: Icons.groups_outlined,
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  setState(() {
-                    _selectedCommunityId = v;
-                  });
-                },
-                validator: (value) {
-                  if (!_isPrivate && (value == null)) {
-                    return 'Selecciona una comunidad';
-                  }
-                  return null;
-                },
+                      items: _communities
+                          .map(
+                            (c) => DropdownMenuItem<int>(
+                              value: c.id,
+                              child: Text(c.name, overflow: TextOverflow.ellipsis),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedCommunityId = v;
+                        });
+                      },
+                      validator: (value) {
+                        if (!_isPrivate && (value == null)) {
+                          return 'Selecciona una comunidad';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               if (_loadingPlaces)
@@ -444,32 +458,39 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   ),
                 )
               else
-                DropdownButtonFormField<int>(
-                  value: _selectedPlaceId,
-                  decoration: _buildInputDecoration(
-                    hintText: 'Lugar del evento',
-                    icon: Icons.place_outlined,
-                  ),
-                  items: _places
-                      .map(
-                        (p) => DropdownMenuItem<int>(
-                          value: p.id,
-                          child: Text(p.name),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: _selectedPlaceId,
+                        isExpanded: true,
+                        decoration: _buildInputDecoration(
+                          hintText: 'Lugar del evento',
+                          icon: Icons.place_outlined,
                         ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _selectedPlaceId = v;
-                      final matchingPlace = _places.firstWhere(
-                        (place) => place.id == v,
-                        orElse: () => _places.first,
-                      );
-                      _locationController.text = matchingPlace.direction;
-                    });
-                  },
-                  validator: (value) =>
-                      value == null ? 'Selecciona un lugar' : null,
+                        items: _places
+                            .map(
+                              (p) => DropdownMenuItem<int>(
+                                value: p.id,
+                                child: Text(p.name, overflow: TextOverflow.ellipsis),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          setState(() {
+                            _selectedPlaceId = v;
+                            final matchingPlace = _places.firstWhere(
+                              (place) => place.id == v,
+                              orElse: () => _places.first,
+                            );
+                            _locationController.text = matchingPlace.direction;
+                          });
+                        },
+                        validator: (value) =>
+                            value == null ? 'Selecciona un lugar' : null,
+                      ),
+                    ),
+                  ],
                 ),
               const SizedBox(height: 16),
               Row(
