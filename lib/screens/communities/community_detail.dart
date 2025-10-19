@@ -561,6 +561,32 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     super.dispose();
   }
 
+  // Derive members count using explicit counter or fallback to members list length
+  int _deriveMembersCount(CommunityDetail community) {
+    if (community.membersCount > 0) {
+      return community.membersCount;
+    }
+    if (community.members != null) {
+      return community.members!.length;
+    }
+    return 0;
+  }
+
+  // Derive events count using explicit counter or fallback to events list length
+  int _deriveEventsCount(CommunityDetail community) {
+    if (community.eventsCount > 0) {
+      return community.eventsCount;
+    }
+    if (community.events != null) {
+      return community.events!.length;
+    }
+    return 0;
+  }
+
+  String _pluralize(String singular, String plural, int count) {
+    return '$count ${count == 1 ? singular : plural}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -703,11 +729,23 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
             children: [
               const Icon(Icons.group, color: Colors.grey, size: 18),
               const SizedBox(width: 8),
-              Text('${community.membersCount} miembros'),
+              Text(_pluralize('miembro', 'miembros', _deriveMembersCount(community))),
               const SizedBox(width: 16),
               const Icon(Icons.event, color: Colors.grey, size: 18),
               const SizedBox(width: 8),
-              Text('${community.eventsCount} eventos'),
+              Text(_pluralize('evento', 'eventos', _deriveEventsCount(community))),
+              const SizedBox(width: 16),
+              if (_isOwner) ...[
+                const Icon(Icons.mail_outline, color: Colors.grey, size: 18),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _openRequests,
+                  child: Chip(
+                    label: Text(_pluralize('solicitud', 'solicitudes', community.requestsCount)),
+                    backgroundColor: community.requestsCount > 0 ? Colors.orange.withOpacity(0.15) : Colors.grey.shade200,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -1055,6 +1093,14 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
           ),
           title: Text(name),
           subtitle: email.isNotEmpty ? Text(email) : null,
+          onTap: () {
+            try {
+              final encoded = jsonEncode(member);
+              developer.log('Member tapped: $encoded', name: 'CommunityDetailsScreen');
+            } catch (e, st) {
+              developer.log('Failed to encode member: $e', name: 'CommunityDetailsScreen', error: e, stackTrace: st);
+            }
+          },
         );
       },
     );
