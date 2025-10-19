@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/home/home_screen.dart';
+import 'package:hackathon_frontend/screens/auth/interests_selector_screen.dart';
 import 'package:hackathon_frontend/services/auth_service.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
@@ -115,9 +115,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-        (route) => false,
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const InterestSelectionScreen(),
+        ),
       );
     } on AuthException catch (e) {
       if (!mounted) {

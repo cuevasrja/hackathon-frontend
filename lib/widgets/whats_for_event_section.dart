@@ -1,4 +1,3 @@
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
 import 'package:hackathon_frontend/models/event_response_model.dart';
@@ -49,7 +48,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
   Meal _mapEventToMeal(Event event) {
     final placeName = event.place?.name ?? '';
     final subtitle = placeName.isNotEmpty ? placeName : event.description;
-    final imagePath = event?.image ?? '';
+    final imagePath = event.image ?? '';
     final truncatedSubtitle = subtitle.length > 60
         ? '${subtitle.substring(0, 57)}...'
         : subtitle;
@@ -75,7 +74,6 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
                 '¿Qué plancito quieres hoy?',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const Icon(Icons.arrow_forward_ios),
             ],
           ),
         ),

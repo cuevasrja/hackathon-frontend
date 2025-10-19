@@ -1,7 +1,8 @@
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart' hide kPrimaryColor, kBackgroundColor;
+import 'package:hackathon_frontend/screens/auth/login.dart'
+    hide kPrimaryColor, kBackgroundColor;
 import 'package:hackathon_frontend/utils/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -159,7 +160,7 @@ class EventDetailsScreen extends StatelessWidget {
                 },
                 style: TextButton.styleFrom(foregroundColor: Color(0xFF8d55d8)),
                 icon: const Icon(Icons.directions_car_outlined, size: 18),
-                label: const Text('Cómo llegar'),
+                label: const Text('Agendar viaje'),
               ),
             ),
             const SizedBox(height: 20),

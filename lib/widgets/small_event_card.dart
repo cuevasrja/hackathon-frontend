@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
@@ -17,9 +15,7 @@ class SmallEventCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: SizedBox(
           width: 150,
           child: Column(
@@ -27,7 +23,7 @@ class SmallEventCard extends StatelessWidget {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: _EventImage(image: event?.image),
+                child: _EventImage(image: event.image),
               ),
               Expanded(
                 child: Padding(
@@ -70,9 +66,11 @@ class _EventImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Log del valor de image para depuración
-    developer.log('Valor de image en _EventImage: '
-        '${image?.substring(0, image!.length > 100 ? 100 : image!.length)}',
-        name: '_EventImage');
+    developer.log(
+      'Valor de image en _EventImage: '
+      '${image?.substring(0, image!.length > 100 ? 100 : image!.length)}',
+      name: '_EventImage',
+    );
     if (image == null || image!.isEmpty) {
       return _defaultImage();
     }

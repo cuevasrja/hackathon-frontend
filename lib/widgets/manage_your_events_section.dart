@@ -32,7 +32,6 @@ class _ManageYourEventsSectionState extends State<ManageYourEventsSection> {
                 'Lugares recomendados',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const Icon(Icons.arrow_forward_ios),
             ],
           ),
         ),
