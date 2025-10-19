@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/services/places_service.dart';
 
@@ -82,51 +84,70 @@ class _SmallPlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: SizedBox(
-        width: 180,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: _PlaceImage(imageUrl: place.imageUrl),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      place.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      place.type.isNotEmpty ? place.type : 'Sin categoría',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${place.city}, ${place.country}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
+    return GestureDetector(
+      onTap: () {
+        developer.log(jsonEncode({
+          'id': place.id,
+          'name': place.name,
+          'direction': place.direction,
+          'city': place.city,
+          'country': place.country,
+          'capacity': place.capacity,
+          'type': place.type,
+          'status': place.status,
+          'productsCount': place.productsCount,
+          'eventsCount': place.eventsCount,
+          'reviewsCount': place.reviewsCount,
+          'image': place.image,
+          'ownerId': place.ownerId,
+        }));
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: SizedBox(
+          width: 180,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _PlaceImage(image: place.image),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        place.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        place.type.isNotEmpty ? place.type : 'Sin categoría',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${place.city}, ${place.country}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -134,13 +155,13 @@ class _SmallPlaceCard extends StatelessWidget {
 }
 
 class _PlaceImage extends StatelessWidget {
-  const _PlaceImage({this.imageUrl});
+  const _PlaceImage({this.image});
 
-  final String? imageUrl;
+  final String? image;
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
+    if (image == null || image!.isEmpty) {
       return Container(
         height: 120,
         width: double.infinity,
@@ -157,7 +178,7 @@ class _PlaceImage extends StatelessWidget {
     }
 
     return Image.network(
-      imageUrl!,
+      image!,
       height: 120,
       width: double.infinity,
       fit: BoxFit.cover,

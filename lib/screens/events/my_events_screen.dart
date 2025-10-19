@@ -255,6 +255,7 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
   // Helper para convertir Event a JSON para logging
   Map<String, dynamic> _eventToJson(Event event) {
+    final place = event.place;
     return {
       'id': event.id,
       'name': event.name,
@@ -262,6 +263,16 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       'timeBegin': event.timeBegin.toIso8601String(),
       'timeEnd': event.timeEnd.toIso8601String(),
       'placeId': event.placeId,
+      'place': place != null ? {
+        'id': place.id,
+        'name': place.name,
+        'direction': place.direction,
+        'city': place.city,
+        'country': place.country,
+        'type': place.type,
+        'image': place.image,
+        'capacity': place.capacity,
+      } : null,
       'organizerId': event.organizerId,
       'communityId': event.communityId,
       'minAge': event.minAge,
@@ -274,6 +285,9 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
   }
 
   Widget _buildPlanCard(Event event) {
+    // Calcular participantes actuales y capacidad
+    final int currentParticipants = event.ticketCount?.tickets ?? 0;
+    final int maxCapacity = event.place?.capacity ?? currentParticipants;
     const List<String> meses = [
       'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
     ];
@@ -363,13 +377,13 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
                       const Icon(Icons.group_outlined, color: kPrimaryColor, size: 20),
                       const SizedBox(width: 8.0),
                       Text(
-                        '0 / ${event.place?.capacity ?? event.ticketCount?.tickets ?? 0} personas',
+                        '$currentParticipants / $maxCapacity personas',
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[800]),
                       ),
                       const Spacer(),
                       _buildParticipantIndicator(
-                        0,
-                        (event.place?.capacity ?? event.ticketCount?.tickets ?? 1),
+                        currentParticipants,
+                        maxCapacity == 0 ? 1 : maxCapacity,
                       ),
                     ],
                   ),

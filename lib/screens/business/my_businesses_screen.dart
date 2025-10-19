@@ -248,13 +248,35 @@ class _MyBusinessesListScreenState extends State<MyBusinessesListScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          // --- NAVEGACIÓN A LA PANTALLA DE DETALLE ---
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => BusinessDetailsScreen(place: place),
-            ),
-          );
+        onTap: () async {
+          try {
+            final fullPlace = await _placesService.fetchPlaceById(place.id);
+            if (mounted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => BusinessDetailsScreen(place: fullPlace),
+                ),
+              );
+            }
+          } on PlacesException catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(e.message),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+          } catch (_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Error al cargar los detalles del negocio.'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -263,11 +285,11 @@ class _MyBusinessesListScreenState extends State<MyBusinessesListScreen> {
               CircleAvatar(
                 radius: 30,
                 backgroundImage:
-                    place.imageUrl != null && place.imageUrl!.isNotEmpty
-                    ? NetworkImage(place.imageUrl!)
-                    : null,
+                    place.image != null && place.image!.isNotEmpty
+                        ? NetworkImage(place.image!)
+                        : null,
                 backgroundColor: kPrimaryColor.withOpacity(0.1),
-                child: place.imageUrl != null && place.imageUrl!.isNotEmpty
+                child: place.image != null && place.image!.isNotEmpty
                     ? null
                     : const Icon(
                         Icons.store_mall_directory,

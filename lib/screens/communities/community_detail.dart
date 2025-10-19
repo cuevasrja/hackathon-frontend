@@ -670,7 +670,17 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                   child:
             community.image != null &&
               community.image!.isNotEmpty
-            ? Image.network(community.image!, fit: BoxFit.cover)
+            ? Image.network(
+                          community.image!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            developer.log('Error loading image: $error');
+                            return Image.asset(
+                              'lib/assets/icon_logo.jpg',
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
                       : Container(
                           color: kPrimaryColor,
                           child: const Icon(
