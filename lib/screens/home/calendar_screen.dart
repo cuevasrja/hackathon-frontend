@@ -4,6 +4,7 @@ import 'package:hackathon_frontend/services/event_service.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'dart:collection';
 import 'dart:developer' as developer;
+import 'package:timezone/timezone.dart' as tz;
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -37,28 +38,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     try {
-      final events = await _eventService.fetchJoinedEvents();
+      final joinedEvents = await _eventService.fetchJoinedEvents();
+      developer.log('Fetched ${joinedEvents.length} events', name: 'CalendarScreen');
 
       final eventMap = LinkedHashMap<DateTime, List<Event>>(
         equals: isSameDay,
         hashCode: (key) => key.day * 1000000 + key.month * 10000 + key.year,
       );
 
-      for (final event in events) {
-        final startDate = event.event.timeBegin;
-        final endDate =
-            event.event.timeEnd.isBefore(startDate) ? startDate : event.event.timeEnd;
+      for (final joinedEvent in joinedEvents) {
+        final event = joinedEvent.event;
+        final startDate = tz.TZDateTime.from(event.timeBegin, tz.local);
+        final endDate = tz.TZDateTime.from(event.timeEnd, tz.local);
 
-        var day = startDate;
-        while (day.isBefore(endDate) || isSameDay(day, endDate)) {
-          final date = DateTime.utc(day.year, day.month, day.day);
-          if (eventMap[date] == null) {
-            eventMap[date] = [];
+        for (var day = startDate;
+            day.isBefore(endDate.add(const Duration(days: 1)));
+            day = day.add(const Duration(days: 1))) {
+          final dateOnly = DateTime(day.year, day.month, day.day);
+          if (eventMap[dateOnly] == null) {
+            eventMap[dateOnly] = [];
           }
-          eventMap[date]!.add(event.event);
-          day = day.add(const Duration(days: 1));
+          eventMap[dateOnly]!.add(event);
         }
       }
+
+      if (!mounted) return;
 
       setState(() {
         _events = eventMap;
@@ -66,6 +70,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       });
     } catch (e) {
       developer.log('Error fetching events: $e', name: 'CalendarScreen');
+      if (!mounted) return;
       setState(() {
         _error = "Error al cargar eventos. Inténtalo de nuevo más tarde.";
         _isLoading = false;
@@ -74,11 +79,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   List<Event> _getEventsForDay(DateTime day) {
-    final events = _events[day] ?? [];
-    if (events.isNotEmpty) {
-      developer.log('Eventos para el $day: ${events.length}', name: 'CalendarScreen');
-    }
-    return events;
+    final dateOnly = DateTime(day.year, day.month, day.day);
+    return _events[dateOnly] ?? [];
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
@@ -138,8 +140,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ? Center(child: Text(_error!))
               : TableCalendar<Event>(
                   locale: 'es_ES',
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
+                  firstDay: DateTime(2020, 1, 1),
+                  lastDay: DateTime(2030, 12, 31),
                   focusedDay: _focusedDay,
                   calendarFormat: _calendarFormat,
                   selectedDayPredicate: (day) => isSameDay(_selectedDay, day),

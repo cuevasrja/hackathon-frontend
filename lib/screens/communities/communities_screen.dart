@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart' as auth; // Para usar las constantes de color
+import 'package:hackathon_frontend/screens/auth/login.dart'
+    as auth; // Para usar las constantes de color
 import 'package:hackathon_frontend/screens/communities/community_detail.dart'
     as detail;
 import 'package:hackathon_frontend/screens/communities/create_community.dart';
@@ -25,6 +26,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   bool _isLoadingMyCommunities = true;
   String? _discoverError;
   String? _myCommunitiesError;
+  int? _currentUserId;
 
   @override
   void initState() {
@@ -87,6 +89,25 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
       }
     }
 
+    if (userId != null) {
+      final Map<int, CommunitySummary> combinedCommunities = {};
+
+      for (final community in discoverCommunities) {
+        if (community.createdById == userId) {
+          combinedCommunities[community.id] = community;
+        }
+      }
+
+      for (final community in myCommunities) {
+        combinedCommunities.putIfAbsent(community.id, () => community);
+      }
+
+      myCommunities = combinedCommunities.values
+          .where((community) => community.createdById == userId)
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+    }
+
     if (!mounted) {
       return;
     }
@@ -99,6 +120,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
       _myCommunities = myCommunities;
       _isLoadingMyCommunities = false;
       _myCommunitiesError = myError;
+      _currentUserId = userId;
     });
   }
 
@@ -114,7 +136,10 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
           elevation: 1,
           title: const Text(
             'Comunidades',
-            style: TextStyle(color: auth.kPrimaryColor, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: auth.kPrimaryColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           centerTitle: true,
           bottom: TabBar(
@@ -177,6 +202,40 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             }
 
             if (result is CreatedCommunity) {
+              final userId = _currentUserId ??
+                  (await SharedPreferences.getInstance())
+                      .getInt(auth.LoginStorageKeys.userId);
+
+              if (userId != null) {
+                final existsInMy =
+                    _myCommunities.any((community) => community.id == result.id);
+                final existsInDiscover = _discoverCommunities
+                    .any((community) => community.id == result.id);
+
+                if (!existsInMy || !existsInDiscover) {
+                  final newCommunitySummary = CommunitySummary(
+                    id: result.id,
+                    name: result.name,
+                    membersCount: 1,
+                    eventsCount: 0,
+                    requestsCount: 0,
+                    description: null,
+                    imageUrl: null,
+                    isPrivate: false,
+                    createdById: userId,
+                  );
+
+                  setState(() {
+                    if (!existsInMy) {
+                      _myCommunities.insert(0, newCommunitySummary);
+                    }
+                    if (!existsInDiscover) {
+                      _discoverCommunities.insert(0, newCommunitySummary);
+                    }
+                  });
+                }
+              }
+
               await _loadCommunities();
             }
           },
@@ -316,16 +375,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
     if (_searchQuery.isEmpty) {
       return communities;
     }
-    return communities
-        .where(
-          (community) {
-            final query = _searchQuery.toLowerCase();
-            final nameMatch = community.name.toLowerCase().contains(query);
-            final descriptionMatch = community.description?.toLowerCase().contains(query) ?? false;
-            return nameMatch || descriptionMatch;
-          },
-        )
-        .toList();
+    return communities.where((community) {
+      final query = _searchQuery.toLowerCase();
+      final nameMatch = community.name.toLowerCase().contains(query);
+      final descriptionMatch =
+          community.description?.toLowerCase().contains(query) ?? false;
+      return nameMatch || descriptionMatch;
+    }).toList();
   }
 
   Widget _buildCommunitySummaryCard(CommunitySummary community) {
@@ -338,9 +394,8 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => detail.CommunityDetailsScreen(
-                communityId: community.id,
-              ),
+              builder: (context) =>
+                  detail.CommunityDetailsScreen(communityId: community.id),
             ),
           );
         },
@@ -353,11 +408,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                 child: CircleAvatar(
                   radius: 30,
                   backgroundColor: auth.kPrimaryColor.withOpacity(0.2),
-                  backgroundImage: community.imageUrl != null &&
+                  backgroundImage:
+                      community.imageUrl != null &&
                           community.imageUrl!.isNotEmpty
                       ? NetworkImage(community.imageUrl!)
                       : null,
-                  child: (community.imageUrl != null &&
+                  child:
+                      (community.imageUrl != null &&
                           community.imageUrl!.isNotEmpty)
                       ? null
                       : const Icon(Icons.people, color: auth.kPrimaryColor),

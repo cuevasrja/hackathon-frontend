@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
@@ -16,12 +17,18 @@ class SmallEventCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: SizedBox(
           width: 150,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _EventImage(image: event.image),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _EventImage(image: event?.image),
+              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -62,62 +69,29 @@ class _EventImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Log del valor de image para depuración
+    developer.log('Valor de image en _EventImage: '
+        '${image?.substring(0, image!.length > 100 ? 100 : image!.length)}',
+        name: '_EventImage');
     if (image == null || image!.isEmpty) {
-      return _placeholder();
+      return _defaultImage();
     }
 
-    if (image!.startsWith('http')) {
-      return Image.network(
-        image!,
-        height: 120,
-        width: 150,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _placeholder(),
-      );
-    }
-
-    try {
-      final UriData? data = Uri.tryParse(image!)?.data;
-      Uint8List? bytes;
-
-      if (data != null) {
-        bytes = data.contentAsBytes();
-      } else {
-        bytes = base64Decode(image!);
-      }
-
-      if (bytes.isNotEmpty) {
-        return Image.memory(
-          bytes,
-          height: 120,
-          width: 150,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholder(),
-        );
-      }
-    } catch (e) {
-      // Not a valid base64 string or URI
-    }
-
-    return Image.asset(
+    return Image.network(
       image!,
       height: 120,
       width: 150,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _placeholder(),
+      errorBuilder: (_, __, ___) => _defaultImage(),
     );
   }
 
-  Widget _placeholder() {
-    return Container(
+  Widget _defaultImage() {
+    return Image.asset(
+      'lib/assets/icon_logo.jpg',
       height: 120,
       width: 150,
-      color: Colors.grey[200],
-      child: const Icon(
-        Icons.event_outlined,
-        size: 40,
-        color: Colors.grey,
-      ),
+      fit: BoxFit.cover,
     );
   }
 }

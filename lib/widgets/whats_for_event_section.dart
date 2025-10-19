@@ -49,7 +49,7 @@ class _WhatsForEventSectionState extends State<WhatsForEventSection> {
   Meal _mapEventToMeal(Event event) {
     final placeName = event.place?.name ?? '';
     final subtitle = placeName.isNotEmpty ? placeName : event.description;
-    final imagePath = event.place?.image ?? '';
+    final imagePath = event?.image ?? '';
     final truncatedSubtitle = subtitle.length > 60
         ? '${subtitle.substring(0, 57)}...'
         : subtitle;

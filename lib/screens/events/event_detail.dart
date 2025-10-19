@@ -14,10 +14,11 @@ class EventDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final place = event.place;
     final organizer = event.organizer;
-    final formattedDate = _formatDate(event.timeBegin);
-    final formattedTime = _formatTime(event.timeBegin);
+    final localTimeBegin = event.timeBegin.toLocal();
+    final formattedDate = _formatDate(localTimeBegin);
+    final formattedTime = _formatTime(localTimeBegin);
     final imageUrl =
-        event.image ??
+        event?.image ??
         place?.image ??
         'https://via.placeholder.com/500x300/CCCCCC/FFFFFF?text=Sin+imagen';
 
