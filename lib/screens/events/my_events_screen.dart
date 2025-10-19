@@ -3,9 +3,11 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_response_model.dart';
+import 'package:hackathon_frontend/models/place_model.dart';
 import 'package:hackathon_frontend/screens/home/calendar_screen.dart';
 import 'package:hackathon_frontend/services/event_service.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
+import 'package:hackathon_frontend/services/places_service.dart' as places_service;
 import '../auth/login.dart'; // Para usar las constantes de color
 import 'create_events.dart';
 import 'event_detail.dart';
@@ -19,6 +21,7 @@ class MyEventsScreen extends StatefulWidget {
 
 class _MyEventsScreenState extends State<MyEventsScreen> {
   final EventService _eventService = EventService();
+  final places_service.PlacesService _placesService = places_service.PlacesService();
 
   final List<Event> _organizedEvents = [];
   final List<Event> _attendingEvents = [];
@@ -69,7 +72,49 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
 
       // Process joined events
       for (final joined in allJoined) {
-        final event = joined.event;
+        var event = joined.event;
+
+        // Workaround to fix missing place capacity in joined events
+        if ((event.place == null || event.place!.capacity == 0) &&
+            event.placeId != null) {
+          try {
+            final placeDetailsFromService =
+                await _placesService.fetchPlaceById(event.placeId!);
+            final placeDetails = Place(
+              id: placeDetailsFromService.id,
+              name: placeDetailsFromService.name,
+              direction: placeDetailsFromService.direction,
+              city: placeDetailsFromService.city,
+              country: placeDetailsFromService.country,
+              type: placeDetailsFromService.type,
+              image: placeDetailsFromService.image,
+              capacity: placeDetailsFromService.capacity,
+            );
+            event = Event(
+              id: event.id,
+              name: event.name,
+              description: event.description,
+              timeBegin: event.timeBegin,
+              timeEnd: event.timeEnd,
+              placeId: event.placeId,
+              organizerId: event.organizerId,
+              communityId: event.communityId,
+              minAge: event.minAge,
+              status: event.status,
+              visibility: event.visibility,
+              createdAt: event.createdAt,
+              externalUrl: event.externalUrl,
+              image: event.image,
+              place: placeDetails, // Using the fetched place details
+              organizer: event.organizer,
+              community: event.community,
+              ticketCount: event.ticketCount,
+            );
+          } catch (e) {
+            developer.log('Failed to fetch place details for event ${event.id}',
+                error: e);
+          }
+        }
 
         if (event.timeEnd.isAfter(now)) {
           newAttending.add(event);
@@ -84,7 +129,8 @@ class _MyEventsScreenState extends State<MyEventsScreen> {
       // Sort events within each list by their start time
       newOrganized.sort((a, b) => a.timeBegin.compareTo(b.timeBegin));
       newAttending.sort((a, b) => a.timeBegin.compareTo(b.timeBegin));
-      newPast.sort((a, b) => b.timeBegin.compareTo(a.timeBegin)); // Past events ascending
+      newPast.sort((a, b) =>
+          b.timeBegin.compareTo(a.timeBegin)); // Past events ascending
 
       setState(() {
         _organizedEvents.clear();

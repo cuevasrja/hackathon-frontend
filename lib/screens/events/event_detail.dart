@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
@@ -270,8 +272,8 @@ class _CapacitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalCapacity =
-        event.place?.capacity ?? event.ticketCount?.tickets ?? 0;
+    final currentParticipants = event.ticketCount?.tickets ?? 0;
+    final totalCapacity = event.place?.capacity ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,14 +285,18 @@ class _CapacitySection extends StatelessWidget {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: Text(
-                'Capacidad total: $totalCapacity personas',
-                style: TextStyle(color: Colors.grey[700]),
-              ),
+            const Icon(Icons.group_outlined, color: kPrimaryColor, size: 20),
+            const SizedBox(width: 8.0),
+            Text(
+              '$currentParticipants / $totalCapacity personas',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[800]),
             ),
+            const Spacer(),
             _CapacityBar(
-              current: 0,
+              current: currentParticipants,
               max: totalCapacity > 0 ? totalCapacity : 1,
             ),
           ],
