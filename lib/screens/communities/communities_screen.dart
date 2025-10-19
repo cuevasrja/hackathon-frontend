@@ -220,7 +220,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                     eventsCount: 0,
                     requestsCount: 0,
                     description: result.description,
-                    imageUrl: null,
+                    image: result.image,
                     isPrivate: false,
                     createdById: userId,
                   );
@@ -409,13 +409,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                   radius: 30,
                   backgroundColor: auth.kPrimaryColor.withOpacity(0.2),
                   backgroundImage:
-                      community.imageUrl != null &&
-                          community.imageUrl!.isNotEmpty
-                      ? NetworkImage(community.imageUrl!)
+            community.image != null &&
+              community.image!.isNotEmpty
+            ? NetworkImage(community.image!)
                       : null,
                   child:
-                      (community.imageUrl != null &&
-                          community.imageUrl!.isNotEmpty)
+            (community.image != null &&
+              community.image!.isNotEmpty)
                       ? null
                       : const Icon(Icons.people, color: auth.kPrimaryColor),
                 ),

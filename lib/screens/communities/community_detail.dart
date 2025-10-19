@@ -642,9 +642,9 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                 background: Hero(
                   tag: 'community-${community.id}',
                   child:
-                      community.imageUrl != null &&
-                          community.imageUrl!.isNotEmpty
-                      ? Image.network(community.imageUrl!, fit: BoxFit.cover)
+            community.image != null &&
+              community.image!.isNotEmpty
+            ? Image.network(community.image!, fit: BoxFit.cover)
                       : Container(
                           color: kPrimaryColor,
                           child: const Icon(

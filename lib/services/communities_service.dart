@@ -14,7 +14,7 @@ class CommunitySummary {
     required this.eventsCount,
     required this.requestsCount,
     this.description,
-    this.imageUrl,
+    this.image,
     this.isPrivate,
     this.createdById,
     this.pendingRequestsDelta = 0,
@@ -29,7 +29,7 @@ class CommunitySummary {
       eventsCount: counts?['events'] as int? ?? 0,
       requestsCount: counts?['requests'] as int? ?? 0,
       description: json['description'] as String?,
-      imageUrl: json['imageUrl'] as String?,
+      image: json['image'] as String?,
       isPrivate: json['isPrivate'] as bool?,
       createdById: _parseCreatedById(json),
       pendingRequestsDelta: 0,
@@ -42,7 +42,7 @@ class CommunitySummary {
   final int eventsCount;
   final int requestsCount;
   final String? description;
-  final String? imageUrl;
+  final String? image;
   final bool? isPrivate;
   final int? createdById;
   final int pendingRequestsDelta;
@@ -764,7 +764,7 @@ class CreatedCommunity {
     required this.id,
     required this.name,
     required this.description,
-    this.imageUrl,
+    this.image,
   });
 
   factory CreatedCommunity.fromJson(Map<String, dynamic> json) {
@@ -772,14 +772,14 @@ class CreatedCommunity {
       id: json['id'] as int,
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      imageUrl: json['imageUrl'] as String?,
+      image: json['image'] as String?,
     );
   }
 
   final int id;
   final String name;
   final String description;
-  final String? imageUrl;
+  final String? image;
 }
 
 class CommunityDetail {
@@ -791,7 +791,7 @@ class CommunityDetail {
     required this.eventsCount,
     required this.requestsCount,
     this.createdById,
-    this.imageUrl,
+    this.image,
     this.members,
     this.events,
   });
@@ -807,7 +807,7 @@ class CommunityDetail {
       eventsCount: counts?['events'] as int? ?? 0,
       requestsCount: counts?['requests'] as int? ?? 0,
       createdById: createdById,
-      imageUrl: json['imageUrl'] as String?,
+      image: json['image'] as String?,
       members: json['members'] as List<dynamic>?,
       events: json['events'] as List<dynamic>?,
     );
@@ -820,7 +820,7 @@ class CommunityDetail {
   final int eventsCount;
   final int requestsCount;
   final int? createdById;
-  final String? imageUrl;
+  final String? image;
   final List<dynamic>? members;
   final List<dynamic>? events;
 }
