@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hackathon_frontend/screens/auth/interests_selector_screen.dart';
 import 'package:hackathon_frontend/services/auth_service.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Importamos el login.dart solo para usar las constantes de color
@@ -36,8 +34,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late AuthService _authService;
   String _selectedGender = 'MAN';
   DateTime? _selectedBirthDate;
-  File? _documentImage;
-  final ImagePicker _picker = ImagePicker();
+  // File? _documentImage;
+  // final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -97,7 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         gender: _selectedGender,
         city: _cityController.text.trim(),
         country: _countryController.text.trim(),
-        documentFrontImage: _documentImage,
+        //documentFrontImage: null,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -150,14 +148,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Future<void> _takeDocumentPhoto() async {
-    final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (picked != null) {
-      setState(() {
-        _documentImage = File(picked.path);
-      });
-    }
-  }
+  // Future<void> _takeDocumentPhoto() async {
+  //   final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+  //   if (picked != null) {
+  //     setState(() {
+  //       _documentImage = File(picked.path);
+  //     });
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -386,16 +384,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 24.0),
                   // Document image picker
-                  const SizedBox(height: 12.0),
-                  _documentImage == null
-                      ? const Text('Ninguna imagen de documento seleccionada.')
-                      : Image.file(_documentImage!, height: 150),
-                  const SizedBox(height: 8.0),
-                  ElevatedButton.icon(
-                    onPressed: _takeDocumentPhoto,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Tomar foto del documento'),
-                  ),
+                  // const SizedBox(height: 12.0),
+                  // _documentImage == null
+                  //     ? const Text('Ninguna imagen de documento seleccionada.')
+                  //     : Image.file(_documentImage!, height: 150),
+                  // const SizedBox(height: 8.0),
+                  // ElevatedButton.icon(
+                  //   onPressed: _takeDocumentPhoto,
+                  //   icon: const Icon(Icons.camera_alt),
+                  //   label: const Text('Tomar foto del documento'),
+                  // ),
                   const SizedBox(height: 24.0),
 
                   // --- Botón de Registrarse ---

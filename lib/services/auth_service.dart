@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:developer' as developer;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img;
 
 class AuthService {
   AuthService();
@@ -71,7 +69,7 @@ class AuthService {
     required String gender,
     required String city,
     required String country,
-    File? documentFrontImage,
+  // File? documentFrontImage, // document upload disabled
   }) async {
     final baseUrl = _baseUrl.trim();
     developer.log('[AuthService] signup baseUrl: ' + baseUrl);
@@ -82,47 +80,21 @@ class AuthService {
     final uri = Uri.parse('$baseUrl/api/auth/signup');
     developer.log('[AuthService] signup uri: ' + uri.toString());
 
+    // Identity document upload disabled; build payload without document
     http.Response response;
+    final payload = <String, dynamic>{
+      'name': name,
+      'lastName': lastName,
+      'email': email,
+      'password': password,
+      'birthDate': birthDate,
+      'gender': gender,
+      'city': city,
+      'country': country,
+      // documentFrontImage and image fields removed
+    };
+    developer.log('[AuthService] signup payload keys: ' + payload.keys.join(', '));
     try {
-      if (documentFrontImage == null) {
-        developer.log('[AuthService] signup: documento frontal no proporcionado');
-        throw AuthException('Debes adjuntar una imagen del documento');
-      }
-
-      final documentFile = documentFrontImage;
-      late final String documentFrontImageBase64;
-      developer.log('[AuthService] signup: procesando documento local en ' + documentFile.path);
-      try {
-        final rawBytes = await documentFile.readAsBytes();
-        developer.log('[AuthService] signup raw bytes length: ' + rawBytes.length.toString());
-        final decoded = img.decodeImage(rawBytes);
-        final processedBytes = decoded != null
-            ? img.encodeJpg(decoded, quality: 90)
-            : rawBytes;
-        developer.log('[AuthService] signup processed bytes length: ' + processedBytes.length.toString());
-        documentFrontImageBase64 = base64Encode(processedBytes);
-        developer.log('[AuthService] signup base64 length: ' + documentFrontImageBase64.length.toString());
-      } on Exception catch (e, st) {
-        developer.log('[AuthService] signup procesando imagen falló, se enviará archivo original en base64: ' + e.toString(),
-            error: e, stackTrace: st);
-        final fallbackBytes = await documentFile.readAsBytes();
-        documentFrontImageBase64 = base64Encode(fallbackBytes);
-      }
-
-      final payload = <String, dynamic>{
-        'name': name,
-        'lastName': lastName,
-        'email': email,
-        'password': password,
-        'birthDate': birthDate,
-        'gender': gender,
-        'city': city,
-        'country': country,
-        'documentFrontImage': documentFrontImageBase64,
-        'image': documentFrontImageBase64,
-      };
-
-      developer.log('[AuthService] signup payload keys: ' + payload.keys.join(', '));
       response = await http
           .post(
             uri,
@@ -132,8 +104,6 @@ class AuthService {
           .timeout(const Duration(seconds: 30));
       developer.log('[AuthService] signup response status: ' + response.statusCode.toString());
       developer.log('[AuthService] signup response body: ' + response.body);
-    } on AuthException {
-      rethrow;
     } on Exception catch (e, st) {
       developer.log('[AuthService] signup Exception: ' + e.toString(), error: e, stackTrace: st);
       throw AuthException('No fue posible conectar con el servidor');
