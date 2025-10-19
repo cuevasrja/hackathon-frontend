@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
@@ -7,6 +8,7 @@ import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as img;
 
 class EventService {
   EventService();
@@ -90,6 +92,7 @@ class EventService {
     required String visibility,
     int? communityId,
     String? externalUrl,
+    File? imageFile,
   }) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
@@ -105,7 +108,6 @@ class EventService {
     if (token == null || token.isEmpty) {
       throw EventException('Token de autenticación no disponible');
     }
-    developer.log('createEvent -> token=$token', name: 'EventService');
 
     final organizerId = prefs.getInt(LoginStorageKeys.userId);
     if (organizerId == null) {
@@ -114,10 +116,34 @@ class EventService {
 
     final uri = Uri.parse('$baseUrl/api/events');
 
-    developer.log(
-      'createEvent -> params name=$name visibility=$visibility communityId=$communityId placeId=$placeId minAge=$minAge organizerId=$organizerId externalUrl=$externalUrl',
-      name: 'EventService',
-    );
+    String? imageBase64;
+    if (imageFile != null) {
+      try {
+        final rawBytes = await imageFile.readAsBytes();
+        developer.log(
+          'createEvent -> imageFile path=${imageFile.path}, raw length=${rawBytes.length}',
+          name: 'EventService',
+        );
+        final decoded = img.decodeImage(rawBytes);
+        final processedBytes = decoded != null
+            ? img.encodeJpg(decoded, quality: 90)
+            : rawBytes;
+        imageBase64 = base64Encode(processedBytes);
+        developer.log(
+          'createEvent -> processed image length=${processedBytes.length}, base64 length=${imageBase64.length}',
+          name: 'EventService',
+        );
+      } on Exception catch (err, st) {
+        developer.log('createEvent -> error processing image: $err',
+            name: 'EventService', error: err, stackTrace: st);
+        final fallbackBytes = await imageFile.readAsBytes();
+        imageBase64 = base64Encode(fallbackBytes);
+        developer.log(
+          'createEvent -> fallback base64 length=${imageBase64.length}',
+          name: 'EventService',
+        );
+      }
+    }
 
     final payload = <String, dynamic>{
       'name': name.trim(),
@@ -127,6 +153,7 @@ class EventService {
       'visibility': visibility,
       'placeId': placeId,
       'organizerId': organizerId,
+      'image': imageBase64 ?? '',
     };
 
     if (minAge != null) {
@@ -145,10 +172,7 @@ class EventService {
       payload['externalUrl'] = externalUrl.trim();
     }
 
-    developer.log(
-      'createEvent -> POST $uri payload=${jsonEncode(payload)}',
-      name: 'EventService',
-    );
+    developer.log('createEvent -> payload: ${jsonEncode(payload)}', name: 'EventService');
 
     http.Response response;
     try {
@@ -170,11 +194,6 @@ class EventService {
       throw EventException('No fue posible conectar con el servidor');
     }
 
-    developer.log(
-      'createEvent <- status: ${response.statusCode}, body: ${response.body}',
-      name: 'EventService',
-    );
-
     final decodedBody = response.body.isNotEmpty
         ? jsonDecode(response.body)
         : null;
@@ -183,10 +202,6 @@ class EventService {
       if (decodedBody is Map<String, dynamic>) {
         final eventData = decodedBody['event'] ?? decodedBody;
         if (eventData is Map<String, dynamic>) {
-          developer.log(
-            'createEvent <- evento creado: ${jsonEncode(eventData)}',
-            name: 'EventService',
-          );
           return Event.fromJson(eventData);
         }
       }
@@ -385,11 +400,6 @@ class EventService {
       throw EventException('No fue posible conectar con el servidor');
     }
 
-    developer.log(
-      'fetchCommunityEvents <- status: ${response.statusCode}, body: ${response.body}',
-      name: 'EventService',
-    );
-
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) {
@@ -411,10 +421,6 @@ class EventService {
           limit: limit,
         );
       }
-      developer.log(
-        'fetchCommunityEvents -> formato inesperado: ${decoded.runtimeType}',
-        name: 'EventService',
-      );
       throw EventException('Respuesta inválida del servidor');
     }
 

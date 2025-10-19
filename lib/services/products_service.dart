@@ -116,11 +116,6 @@ class ProductsService {
 
     final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : null;
 
-    developer.log(
-      'createProduct response -> status ${response.statusCode}, body: ${response.body}',
-      name: 'ProductsService',
-    );
-
     if (response.statusCode == 201) {
       if (decoded is! Map<String, dynamic>) {
         throw ProductsException('Respuesta inválida del servidor');

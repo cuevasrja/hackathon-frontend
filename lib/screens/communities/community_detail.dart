@@ -115,10 +115,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         page: 1,
         limit: 20,
       );
-      developer.log(
-        'fetchCommunityEvents <- eventos: ${response.events.length}, pagina: ${response.page}, total: ${response.total}',
-        name: 'CommunityDetailsScreen',
-      );
+
       if (!mounted) {
         return;
       }

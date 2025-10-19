@@ -38,7 +38,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     try {
       final events = await _eventService.fetchJoinedEvents();
-      developer.log('Fetched ${events.length} events', name: 'CalendarScreen');
 
       final eventMap = LinkedHashMap<DateTime, List<Event>>(
         equals: isSameDay,

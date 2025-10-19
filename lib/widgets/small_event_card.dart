@@ -1,25 +1,19 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/home/meal_details_screen.dart';
-import 'package:hackathon_frontend/models/meal_model.dart';
+import 'package:hackathon_frontend/models/event_model.dart';
 
 class SmallEventCard extends StatelessWidget {
-  final Meal meal;
+  final Event event;
   final VoidCallback? onTap;
 
-  const SmallEventCard({super.key, required this.meal, this.onTap});
+  const SmallEventCard({super.key, required this.event, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap ??
-          () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MealDetailsScreen(meal: meal),
-              ),
-            );
-          },
+      onTap: onTap,
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: SizedBox(
@@ -27,7 +21,7 @@ class SmallEventCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _MealImage(imagePath: meal.imagePath),
+              _EventImage(image: event.image),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -35,7 +29,7 @@ class SmallEventCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        meal.name,
+                        event.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleMedium,
@@ -43,8 +37,8 @@ class SmallEventCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Flexible(
                         child: Text(
-                        meal.description,
-                        maxLines: 4,
+                          event.description,
+                          maxLines: 4,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
@@ -61,22 +55,20 @@ class SmallEventCard extends StatelessWidget {
   }
 }
 
-class _MealImage extends StatelessWidget {
-  const _MealImage({required this.imagePath});
+class _EventImage extends StatelessWidget {
+  const _EventImage({this.image});
 
-  final String imagePath;
+  final String? image;
 
   @override
   Widget build(BuildContext context) {
-    if (imagePath.isEmpty) {
+    if (image == null || image!.isEmpty) {
       return _placeholder();
     }
 
-    final isNetworkImage = imagePath.startsWith('http');
-
-    if (isNetworkImage) {
+    if (image!.startsWith('http')) {
       return Image.network(
-        imagePath,
+        image!,
         height: 120,
         width: 150,
         fit: BoxFit.cover,
@@ -84,8 +76,31 @@ class _MealImage extends StatelessWidget {
       );
     }
 
+    try {
+      final UriData? data = Uri.tryParse(image!)?.data;
+      Uint8List? bytes;
+
+      if (data != null) {
+        bytes = data.contentAsBytes();
+      } else {
+        bytes = base64Decode(image!);
+      }
+
+      if (bytes.isNotEmpty) {
+        return Image.memory(
+          bytes,
+          height: 120,
+          width: 150,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(),
+        );
+      }
+    } catch (e) {
+      // Not a valid base64 string or URI
+    }
+
     return Image.asset(
-      imagePath,
+      image!,
       height: 120,
       width: 150,
       fit: BoxFit.cover,
