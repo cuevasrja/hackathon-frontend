@@ -371,7 +371,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     super.initState();
     _communitiesService = CommunitiesService();
     _eventService = EventService();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _fetchCommunity();
     _initializeLocaleAndLoadEvents();
   }
@@ -634,7 +634,7 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
   Widget _buildContent() {
     final community = _community!;
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
@@ -703,7 +703,6 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                   tabs: const [
                     Tab(icon: Icon(Icons.event_note), text: 'Eventos'),
                     Tab(icon: Icon(Icons.group), text: 'Miembros'),
-                    Tab(icon: Icon(Icons.chat_bubble_outline), text: 'Chat'),
                   ],
                 ),
               ),
@@ -716,7 +715,6 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
           children: [
             _buildEventsTab(),
             _buildMembersTab(community),
-            _buildChatPlaceholder(),
           ],
         ),
       ),
@@ -735,27 +733,42 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 16.0,
+            runSpacing: 8.0,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Icon(Icons.group, color: Colors.grey, size: 18),
-              const SizedBox(width: 8),
-              Text(_pluralize('miembro', 'miembros', _deriveMembersCount(community))),
-              const SizedBox(width: 16),
-              const Icon(Icons.event, color: Colors.grey, size: 18),
-              const SizedBox(width: 8),
-              Text(_pluralize('evento', 'eventos', _deriveEventsCount(community))),
-              const SizedBox(width: 16),
-              if (_isOwner) ...[
-                const Icon(Icons.mail_outline, color: Colors.grey, size: 18),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _openRequests,
-                  child: Chip(
-                    label: Text(_pluralize('solicitud', 'solicitudes', community.requestsCount)),
-                    backgroundColor: community.requestsCount > 0 ? Colors.orange.withOpacity(0.15) : Colors.grey.shade200,
-                  ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.group, color: Colors.grey, size: 18),
+                  const SizedBox(width: 8),
+                  Text(_pluralize('miembro', 'miembros', _deriveMembersCount(community))),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.event, color: Colors.grey, size: 18),
+                  const SizedBox(width: 8),
+                  Text(_pluralize('evento', 'eventos', _deriveEventsCount(community))),
+                ],
+              ),
+              if (_isOwner)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.mail_outline, color: Colors.grey, size: 18),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _openRequests,
+                      child: Chip(
+                        label: Text(_pluralize('solicitud', 'solicitudes', community.requestsCount)),
+                        backgroundColor: community.requestsCount > 0 ? Colors.orange.withOpacity(0.15) : Colors.grey.shade200,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -993,6 +1006,8 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
     final dateLabel = formatter.format(event.timeBegin);
     final placeName = event.place?.name ?? 'Ubicación por definir';
     final secondaryPlace = event.place?.direction ?? event.externalUrl;
+    final visibility = mapToVisibilityLabel(event.visibility);
+    final status = mapStatusToLabel(event.status);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1042,12 +1057,12 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
               runSpacing: 8,
               children: [
                 Chip(
-                  label: Text(event.status),
+                  label: Text(status),
                   backgroundColor: kPrimaryColor.withOpacity(0.15),
                   labelStyle: const TextStyle(color: kPrimaryColor),
                 ),
                 Chip(
-                  label: Text(event.visibility),
+                  label: Text(visibility),
                   backgroundColor: Colors.grey.shade200,
                 ),
               ],
@@ -1095,12 +1110,13 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
 
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: kPrimaryColor.withOpacity(0.2),
+            // backgroundColor: kPrimaryColor.withOpacity(0.2),
             backgroundImage: imageFromUser != null && imageFromUser.isNotEmpty ? NetworkImage(imageFromUser) : null,
             child: (imageFromUser == null || imageFromUser.isEmpty)
-                ? Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: kPrimaryColor),
+                ? Icon(
+                    Icons.person,
+                    size: 24, // Adjusted size to fit ListTile's CircleAvatar
+                    color: kPrimaryColor,
                   )
                 : null,
           ),
@@ -1118,13 +1134,34 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
       },
     );
   }
-
-  Widget _buildChatPlaceholder() {
-    return const Center(
-      child: Text('El chat de la comunidad estará disponible próximamente.'),
-    );
+  
+  String mapStatusToLabel(String status) {
+    switch (status) {
+      case 'proximo':
+        return 'Próximo';
+      case 'en_curso':
+        return 'En curso';
+      case 'finalizado':
+        return 'Finalizado';
+      case 'cancelado':
+        return 'Cancelado';
+      default:
+        return 'Desconocido';
+    }
+  }
+  
+  String mapToVisibilityLabel(String visibility) {
+    switch (visibility) {
+      case 'PUBLIC':
+        return 'Público';
+      case 'PRIVATE':
+        return 'Privado';
+      default:
+        return 'Desconocido';
+    }
   }
 }
+
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate(this._tabBar);
@@ -1151,3 +1188,11 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     return false;
   }
 }
+
+extension StringCapitalization on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return this[0].toUpperCase() + substring(1).toLowerCase();
+  }
+}
+
