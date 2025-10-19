@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hackathon_frontend/models/event_model.dart';
@@ -7,6 +8,7 @@ import 'package:hackathon_frontend/models/event_response_model.dart';
 import 'package:hackathon_frontend/screens/auth/login.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as img;
 
 class EventService {
   EventService();
@@ -67,15 +69,6 @@ class EventService {
       throw EventException('Sesión expirada, inicia sesión nuevamente');
     }
 
-    final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : null;
-    final message = decoded is Map<String, dynamic>
-        ? decoded['message'] as String? ??
-              'Error inesperado al obtener los eventos de la comunidad'
-        : 'Error inesperado al obtener los eventos de la comunidad';
-    developer.log(
-      'fetchCommunityEvents -> error ${response.statusCode}: $message',
-      name: 'EventService',
-    );
     throw EventException('Error inesperado (${response.statusCode})');
   }
 
@@ -85,11 +78,13 @@ class EventService {
     required DateTime timeBegin,
     DateTime? timeEnd,
     required int placeId,
+    int? categoryId, // Add this
     int? minAge,
     String? status,
     required String visibility,
     int? communityId,
     String? externalUrl,
+    File? imageFile,
   }) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
@@ -105,7 +100,6 @@ class EventService {
     if (token == null || token.isEmpty) {
       throw EventException('Token de autenticación no disponible');
     }
-    developer.log('createEvent -> token=$token', name: 'EventService');
 
     final organizerId = prefs.getInt(LoginStorageKeys.userId);
     if (organizerId == null) {
@@ -114,10 +108,34 @@ class EventService {
 
     final uri = Uri.parse('$baseUrl/api/events');
 
-    developer.log(
-      'createEvent -> params name=$name visibility=$visibility communityId=$communityId placeId=$placeId minAge=$minAge organizerId=$organizerId externalUrl=$externalUrl',
-      name: 'EventService',
-    );
+    String? imageBase64;
+    if (imageFile != null) {
+      try {
+        final rawBytes = await imageFile.readAsBytes();
+        developer.log(
+          'createEvent -> imageFile path=${imageFile.path}, raw length=${rawBytes.length}',
+          name: 'EventService',
+        );
+        final decoded = img.decodeImage(rawBytes);
+        final processedBytes = decoded != null
+            ? img.encodeJpg(decoded, quality: 90)
+            : rawBytes;
+        imageBase64 = base64Encode(processedBytes);
+        developer.log(
+          'createEvent -> processed image length=${processedBytes.length}, base64 length=${imageBase64.length}',
+          name: 'EventService',
+        );
+      } on Exception catch (err, st) {
+        developer.log('createEvent -> error processing image: $err',
+            name: 'EventService', error: err, stackTrace: st);
+        final fallbackBytes = await imageFile.readAsBytes();
+        imageBase64 = base64Encode(fallbackBytes);
+        developer.log(
+          'createEvent -> fallback base64 length=${imageBase64.length}',
+          name: 'EventService',
+        );
+      }
+    }
 
     final payload = <String, dynamic>{
       'name': name.trim(),
@@ -127,6 +145,7 @@ class EventService {
       'visibility': visibility,
       'placeId': placeId,
       'organizerId': organizerId,
+      'image': imageBase64 ?? '',
     };
 
     if (minAge != null) {
@@ -145,10 +164,11 @@ class EventService {
       payload['externalUrl'] = externalUrl.trim();
     }
 
-    developer.log(
-      'createEvent -> POST $uri payload=${jsonEncode(payload)}',
-      name: 'EventService',
-    );
+    developer.log('createEvent -> payload: ${jsonEncode(payload)}', name: 'EventService');
+
+    if (categoryId != null) {
+      payload['categoryId'] = categoryId;
+    }
 
     http.Response response;
     try {
@@ -170,11 +190,6 @@ class EventService {
       throw EventException('No fue posible conectar con el servidor');
     }
 
-    developer.log(
-      'createEvent <- status: ${response.statusCode}, body: ${response.body}',
-      name: 'EventService',
-    );
-
     final decodedBody = response.body.isNotEmpty
         ? jsonDecode(response.body)
         : null;
@@ -183,10 +198,6 @@ class EventService {
       if (decodedBody is Map<String, dynamic>) {
         final eventData = decodedBody['event'] ?? decodedBody;
         if (eventData is Map<String, dynamic>) {
-          developer.log(
-            'createEvent <- evento creado: ${jsonEncode(eventData)}',
-            name: 'EventService',
-          );
           return Event.fromJson(eventData);
         }
       }
@@ -194,6 +205,9 @@ class EventService {
     }
 
     if (response.statusCode == 400 || response.statusCode == 422) {
+      print(decodedBody);
+      print("Response Body: ${response.body}");
+      print("Response Status: ${response.statusCode}");
       final message = decodedBody is Map<String, dynamic>
           ? decodedBody['message'] as String? ?? 'Datos inválidos'
           : 'Datos inválidos';
@@ -207,14 +221,69 @@ class EventService {
     final message = decodedBody is Map<String, dynamic>
         ? decodedBody['message'] as String? ?? 'No fue posible crear el evento'
         : 'No fue posible crear el evento';
-    developer.log(
-      'createEvent -> error ${response.statusCode}: $message',
-      name: 'EventService',
-    );
     throw EventException(message);
   }
 
-  Future<List<JoinedEvent>> fetchJoinedEvents() async {
+  Future<List<Event>> fetchOrganizedEvents() async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw EventException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw EventException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/users/me/events');
+
+    http.Response response;
+    try {
+      response = await http
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw EventException('No fue posible conectar con el servidor');
+    }
+
+    if (response.statusCode == 200) {
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : [];
+
+      if (decoded is List) {
+        return decoded
+            .whereType<Map<String, dynamic>>()
+            .map(Event.fromJson)
+            .toList();
+      }
+
+      if (decoded is Map<String, dynamic>) {
+        final data = decoded['data'];
+        if (data is List) {
+          return data
+              .whereType<Map<String, dynamic>>()
+              .map(Event.fromJson)
+              .toList();
+        }
+      }
+
+      throw EventException('Respuesta inválida del servidor');
+    }
+
+    if (response.statusCode == 401) {
+      throw EventException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    throw EventException('Error inesperado (${response.statusCode})');
+  }
+
+  Future<List<MyEvent>> fetchJoinedEvents() async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
       throw EventException('API_BASE_URL no está configurado');
@@ -249,7 +318,7 @@ class EventService {
       if (decoded is List) {
         return decoded
             .whereType<Map<String, dynamic>>()
-            .map(JoinedEvent.fromJson)
+            .map(MyEvent.fromJson)
             .toList();
       }
 
@@ -258,7 +327,7 @@ class EventService {
         if (data is List) {
           return data
               .whereType<Map<String, dynamic>>()
-              .map(JoinedEvent.fromJson)
+              .map(MyEvent.fromJson)
               .toList();
         }
       }
@@ -378,17 +447,8 @@ class EventService {
           )
           .timeout(const Duration(seconds: 15));
     } on Exception {
-      developer.log(
-        'fetchCommunityEvents -> error de conexión con $uri',
-        name: 'EventService',
-      );
       throw EventException('No fue posible conectar con el servidor');
     }
-
-    developer.log(
-      'fetchCommunityEvents <- status: ${response.statusCode}, body: ${response.body}',
-      name: 'EventService',
-    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
@@ -400,10 +460,6 @@ class EventService {
             .whereType<Map<String, dynamic>>()
             .map(Event.fromJson)
             .toList();
-        developer.log(
-          'fetchCommunityEvents <- lista sin paginación, eventos: ${events.length}',
-          name: 'EventService',
-        );
         return EventResponse(
           events: events,
           total: events.length,
@@ -411,10 +467,6 @@ class EventService {
           limit: limit,
         );
       }
-      developer.log(
-        'fetchCommunityEvents -> formato inesperado: ${decoded.runtimeType}',
-        name: 'EventService',
-      );
       throw EventException('Respuesta inválida del servidor');
     }
 

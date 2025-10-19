@@ -17,6 +17,7 @@ class Event {
   final String visibility;
   final DateTime createdAt;
   final String? externalUrl;
+  final String? image;
   final Place? place;
   final User? organizer;
   final Community? community;
@@ -36,6 +37,7 @@ class Event {
     required this.visibility,
     required this.createdAt,
     this.externalUrl,
+    this.image,
     this.place,
     this.organizer,
     this.community,
@@ -62,6 +64,7 @@ class Event {
       visibility: json['visibility'] as String? ?? 'PRIVATE',
       createdAt: DateTime.parse(json['createdAt'] as String),
       externalUrl: json['externalUrl'] as String?,
+      image: json['image'] as String?,
       place: placeJson is Map<String, dynamic> ? Place.fromJson(placeJson) : null,
       organizer: organizerJson is Map<String, dynamic> ? User.fromJson(organizerJson) : null,
       community: communityJson is Map<String, dynamic> ? Community.fromJson(communityJson) : null,

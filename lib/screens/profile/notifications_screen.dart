@@ -11,28 +11,35 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late List<model.Notification> _notifications;
+  final NotificationService _notificationService = NotificationService();
+  late Future<List<model.Notification>> _notificationsFuture;
 
   @override
   void initState() {
     super.initState();
-    _notifications = NotificationService.getNotifications();
-    _notifications.sort((a, b) => b.date.compareTo(a.date));
+    _loadNotifications();
   }
 
-  void _markAllAsRead() {
+  void _loadNotifications() {
     setState(() {
-      for (var notification in _notifications) {
-        notification.isRead = true;
+      _notificationsFuture = _notificationService.fetchNotifications();
+    });
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      await _notificationService.markAllAsRead();
+      _loadNotifications(); // Refresh the list
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
       }
-    });
+    }
   }
 
-  void _markAsRead(int index) {
-    setState(() {
-      _notifications[index].isRead = true;
-    });
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -43,17 +50,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           IconButton(
             icon: const Icon(Icons.done_all),
             onPressed: _markAllAsRead,
+            tooltip: 'Marcar todas como leídas',
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _notifications.length,
-        itemBuilder: (context, index) {
-          return NotificationListItem(
-            notification: _notifications[index],
-            onTap: () => _markAsRead(index),
-          );
-        },
+      body: RefreshIndicator(
+        onRefresh: () async => _loadNotifications(),
+        child: FutureBuilder<List<model.Notification>>(
+          future: _notificationsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No tienes notificaciones.'));
+            }
+
+            final notifications = snapshot.data!;
+            notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+            return ListView.builder(
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final notification = notifications[index];
+                return NotificationListItem(
+                  notification: notification,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

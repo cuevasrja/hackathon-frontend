@@ -27,21 +27,21 @@ class EventResponse {
   }
 }
 
-class JoinedEvent {
+class MyEvent {
   final int eventId;
   final int userId;
   final DateTime joinedAt;
   final Event event;
 
-  JoinedEvent({
+  MyEvent({
     required this.eventId,
     required this.userId,
     required this.joinedAt,
     required this.event,
   });
 
-  factory JoinedEvent.fromJson(Map<String, dynamic> json) {
-    return JoinedEvent(
+  factory MyEvent.fromJson(Map<String, dynamic> json) {
+    return MyEvent(
       eventId: json['eventId'] as int,
       userId: json['userId'] as int,
       joinedAt: DateTime.parse(json['joinedAt'] as String),
