@@ -386,6 +386,9 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
   }
 
   Widget _buildCommunitySummaryCard(CommunitySummary community) {
+    final bool showRequests =
+        _currentUserId != null && community.createdById == _currentUserId;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 2,
@@ -450,11 +453,13 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                       '${community.membersCount} miembros · ${community.eventsCount} eventos',
                       style: TextStyle(color: Colors.grey[700]),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${community.requestsCount} solicitudes pendientes',
-                      style: TextStyle(color: Colors.grey[500]),
-                    ),
+                    if (showRequests) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '${community.requestsCount} solicitudes pendientes',
+                        style: TextStyle(color: Colors.grey[500]),
+                      ),
+                    ],
                   ],
                 ),
               ),
