@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hackathon_frontend/screens/auth/login.dart'; // Para usar las constantes de color
+import 'package:hackathon_frontend/models/category_model.dart';
+import 'package:hackathon_frontend/screens/auth/login.dart';
+import 'package:hackathon_frontend/services/category_service.dart';
 import 'package:hackathon_frontend/services/communities_service.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
@@ -12,28 +14,20 @@ class CreateCommunityScreen extends StatefulWidget {
 class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores y variables de estado
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _rulesController;
   late CommunitiesService _communitiesService;
+  late CategoryService _categoryService;
 
-  String? _selectedCategory;
+  int? _selectedCategoryId;
   bool _isPrivate = false;
   bool _imageSelected = false;
   bool _isSubmitting = false;
   String? _submitError;
 
-  final List<String> _categories = [
-    'Universidad',
-    'Trabajo',
-    'Deporte',
-    'Gastronomía',
-    'Arte y Cultura',
-    'Música',
-    'Gaming',
-    'Otro',
-  ];
+  List<Category> _categories = [];
+  bool _loadingCategories = true;
 
   @override
   void initState() {
@@ -42,6 +36,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     _descriptionController = TextEditingController();
     _rulesController = TextEditingController();
     _communitiesService = CommunitiesService();
+    _categoryService = CategoryService();
+    _loadCategories();
   }
 
   @override
@@ -52,7 +48,22 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     super.dispose();
   }
 
-  // --- Lógica para "crear" la comunidad ---
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await _categoryService.fetchCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _loadingCategories = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCategories = false;
+      });
+    }
+  }
+
   Future<void> _createCommunity() async {
     if (!_formKey.currentState!.validate() || _isSubmitting) {
       return;
@@ -126,11 +137,8 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
-
-              // --- Campo para Añadir Imagen ---
               GestureDetector(
                 onTap: () {
-                  // TODO: Lógica para abrir la galería de imágenes
                   setState(() {
                     _imageSelected = true;
                   });
@@ -171,8 +179,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- Nombre de la Comunidad ---
               TextFormField(
                 controller: _nameController,
                 decoration: _buildInputDecoration(
@@ -184,35 +190,34 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     : null,
               ),
               const SizedBox(height: 16),
-
-              // --- Categoría ---
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: _buildInputDecoration(
-                  hintText: 'Categoría',
-                  icon: Icons.category_outlined,
+              if (_loadingCategories)
+                const Center(child: CircularProgressIndicator())
+              else
+                DropdownButtonFormField<int>(
+                  value: _selectedCategoryId,
+                  decoration: _buildInputDecoration(
+                    hintText: 'Categoría',
+                    icon: Icons.category_outlined,
+                  ),
+                  items: _categories.map((Category category) {
+                    return DropdownMenuItem<int>(
+                      value: category.id,
+                      child: Text(category.name),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedCategoryId = newValue;
+                    });
+                  },
+                  validator: (value) =>
+                      value == null ? 'Selecciona una categoría' : null,
                 ),
-                items: _categories.map((String category) {
-                  return DropdownMenuItem<String>(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedCategory = newValue;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'Selecciona una categoría' : null,
-              ),
               const SizedBox(height: 16),
-
-              // --- Descripción ---
               TextFormField(
                 controller: _descriptionController,
                 decoration: _buildInputDecoration(
-                  hintText: 'Describe el propósito del grupo...',
+                  hintText: 'Describe el propósito del grupo...', 
                   icon: Icons.description_outlined,
                 ),
                 maxLines: 4,
@@ -221,8 +226,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     : null,
               ),
               const SizedBox(height: 16),
-
-              // --- Reglas (Opcional) ---
               TextFormField(
                 controller: _rulesController,
                 decoration: _buildInputDecoration(
@@ -233,8 +236,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-
-              // --- Switch Público/Privado ---
               SwitchListTile(
                 title: const Text('Comunidad Privada'),
                 subtitle: const Text(
@@ -253,7 +254,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-
               if (_submitError != null) ...[
                 Text(
                   _submitError!,
@@ -261,8 +261,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-
-              // --- Botón de Crear Comunidad ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -299,7 +297,6 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     );
   }
 
-  // Helper para el estilo de los campos
   InputDecoration _buildInputDecoration({
     required String hintText,
     required IconData icon,
