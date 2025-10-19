@@ -420,10 +420,23 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                             community.image!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              developer.log('Error loading image: $error');
+                              developer.log(
+                                  'Error loading image for ${community.image}: $error');
                               return Image.asset(
                                 'lib/assets/icon_logo.jpg',
                                 fit: BoxFit.cover,
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
                               );
                             },
                           )
