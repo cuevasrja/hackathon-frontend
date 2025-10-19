@@ -670,7 +670,17 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
                   child:
             community.image != null &&
               community.image!.isNotEmpty
-            ? Image.network(community.image!, fit: BoxFit.cover)
+            ? Image.network(
+                          community.image!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            developer.log('Error loading image: $error');
+                            return Image.asset(
+                              'lib/assets/icon_logo.jpg',
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
                       : Container(
                           color: kPrimaryColor,
                           child: const Icon(
@@ -1071,27 +1081,30 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen>
         );
 
 
-    // member is a Map; the user info may be under the 'user' key or top-level keys
     final userObj = member['user'] is Map<String, dynamic>
       ? (member['user'] as Map<String, dynamic>)
-      : null;
-    final String? nameFromUser = userObj != null ? userObj['name'] as String? : null;
-    final String? nameFromMember = member['name'] as String?;
-    final String name = (nameFromUser ?? nameFromMember) ?? 'Miembro sin nombre';
+      : member;
+    final String? nameFromUser = userObj['name'] as String?;
+    final String? lastNameFromUser = userObj['lastName'] as String?;
+    final String name = ('${nameFromUser ?? ''} ${lastNameFromUser ?? ''}').trim();
 
-    final String? emailFromUser = userObj != null ? userObj['email'] as String? : null;
-    final String? emailFromMember = member['email'] as String?;
-    final String email = (emailFromUser ?? emailFromMember) ?? '';
+    final String? emailFromUser = userObj['email'] as String?;
+    final String email = emailFromUser ?? '';
+
+    final String? imageFromUser = userObj['image'] as String?;
 
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: kPrimaryColor.withOpacity(0.2),
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: const TextStyle(color: kPrimaryColor),
-            ),
+            backgroundImage: imageFromUser != null && imageFromUser.isNotEmpty ? NetworkImage(imageFromUser) : null,
+            child: (imageFromUser == null || imageFromUser.isEmpty)
+                ? Text(
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(color: kPrimaryColor),
+                  )
+                : null,
           ),
-          title: Text(name),
+          title: Text(name.isNotEmpty ? name : 'Miembro sin nombre'),
           subtitle: email.isNotEmpty ? Text(email) : null,
           onTap: () {
             try {

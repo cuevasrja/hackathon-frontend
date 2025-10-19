@@ -411,19 +411,40 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
             children: [
               Hero(
                 tag: 'community-${community.id}',
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: auth.kPrimaryColor.withOpacity(0.2),
-                  backgroundImage:
-            community.image != null &&
-              community.image!.isNotEmpty
-            ? NetworkImage(community.image!)
-                      : null,
-                  child:
-            (community.image != null &&
-              community.image!.isNotEmpty)
-                      ? null
-                      : const Icon(Icons.people, color: auth.kPrimaryColor),
+                child: ClipOval(
+                  child: SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: community.image != null && community.image!.isNotEmpty
+                        ? Image.network(
+                            community.image!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              developer.log(
+                                  'Error loading image for ${community.image}: $error');
+                              return Image.asset(
+                                'lib/assets/icon_logo.jpg',
+                                fit: BoxFit.cover,
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              );
+                            },
+                          )
+                        : Image.asset(
+                            'lib/assets/icon_logo.jpg',
+                            fit: BoxFit.cover,
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(width: 16.0),

@@ -529,9 +529,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Plan Privado'),
-                subtitle: const Text(
-                  'Solo visible para tus amigos o comunidades.',
+                title: Text(_isPrivate ? 'Plan Privado' : 'Plan Público'),
+                subtitle: Text(
+                  _isPrivate
+                      ? 'Solo visible para tus amigos o comunidades.'
+                      : 'Visible para todos.',
                 ),
                 value: _isPrivate,
                 onChanged: (bool value) {

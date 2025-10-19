@@ -178,6 +178,52 @@ class PlacesService {
 
     throw PlacesException('Error inesperado (${response.statusCode})');
   }
+
+  Future<Place> fetchPlaceById(int id) async {
+    final baseUrl = _baseUrl.trim();
+    if (baseUrl.isEmpty) {
+      throw PlacesException('API_BASE_URL no está configurado');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(LoginStorageKeys.token);
+    if (token == null || token.isEmpty) {
+      throw PlacesException('Token de autenticación no disponible');
+    }
+
+    final uri = Uri.parse('$baseUrl/api/places/$id');
+
+    http.Response response;
+    try {
+      response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+    } on Exception {
+      throw PlacesException('No fue posible conectar con el servidor');
+    }
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw PlacesException('Respuesta inválida del servidor');
+      }
+      return Place.fromJson(decoded);
+    }
+
+    if (response.statusCode == 401) {
+      throw PlacesException('Sesión expirada, inicia sesión nuevamente');
+    }
+
+    if (response.statusCode == 404) {
+      throw PlacesException('El negocio no fue encontrado');
+    }
+
+    throw PlacesException('Error inesperado (${response.statusCode})');
+  }
 }
 
 class PlacesResponse {
@@ -185,6 +231,93 @@ class PlacesResponse {
 
   final List<PlaceSummary> places;
   final PlacePagination pagination;
+}
+
+class Place {
+  Place({
+    required this.id,
+    required this.name,
+    required this.direction,
+    required this.city,
+    required this.country,
+    required this.capacity,
+    required this.type,
+    required this.status,
+    required this.productsCount,
+    required this.eventsCount,
+    required this.reviewsCount,
+    this.image,
+    this.proprietor,
+    this.ownerId,
+  });
+
+  factory Place.fromJson(Map<String, dynamic> json) {
+    final proprietorJson = json['proprietor'];
+    final countsJson = json['_count'];
+    final images = json['images'];
+
+    String? resolvedImage;
+    if (images is List && images.isNotEmpty) {
+      final first = images.first;
+      if (first is String) {
+        resolvedImage = first;
+      } else if (first is Map<String, dynamic>) {
+        resolvedImage = first['url'] as String? ?? first['imageUrl'] as String?;
+      }
+    }
+    resolvedImage ??= json['image'] as String?;
+
+    return Place(
+      id: json['id'] as int,
+      name: json['name'] as String? ?? '',
+      direction: json['direction'] as String? ?? '',
+      city: json['city'] as String? ?? '',
+      country: json['country'] as String? ?? '',
+      capacity: json['capacity'] is int
+          ? json['capacity'] as int
+          : int.tryParse('${json['capacity']}') ?? 0,
+      type: json['type'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      productsCount: countsJson is Map<String, dynamic>
+          ? countsJson['products'] as int? ?? 0
+          : 0,
+      eventsCount: countsJson is Map<String, dynamic>
+          ? countsJson['events'] as int? ?? 0
+          : 0,
+      reviewsCount: countsJson is Map<String, dynamic>
+          ? countsJson['reviews'] as int? ?? 0
+          : 0,
+      image: resolvedImage,
+      proprietor: proprietorJson is Map<String, dynamic>
+          ? PlaceProprietor.fromJson(proprietorJson)
+          : null,
+      ownerId: json['ownerId'] is int
+          ? json['ownerId'] as int
+          : int.tryParse('${json['ownerId']}'),
+    );
+  }
+
+  final int id;
+  final String name;
+  final String direction;
+  final String city;
+  final String country;
+  final int capacity;
+  final String type;
+  final String status;
+  final int productsCount;
+  final int eventsCount;
+  final int reviewsCount;
+  final String? image;
+  final PlaceProprietor? proprietor;
+  final int? ownerId;
+
+  String get proprietorFullName {
+    if (proprietor == null) {
+      return 'Sin propietario asignado';
+    }
+    return proprietor!.fullName;
+  }
 }
 
 class PlaceSummary {
@@ -200,7 +333,7 @@ class PlaceSummary {
     required this.productsCount,
     required this.eventsCount,
     required this.reviewsCount,
-    this.imageUrl,
+    this.image,
     this.proprietor,
     this.ownerId,
   });
@@ -219,7 +352,7 @@ class PlaceSummary {
         resolvedImage = first['url'] as String? ?? first['imageUrl'] as String?;
       }
     }
-    resolvedImage ??= json['imageUrl'] as String?;
+    resolvedImage ??= json['image'] as String?;
 
     return PlaceSummary(
       id: json['id'] as int,
@@ -241,7 +374,7 @@ class PlaceSummary {
       reviewsCount: countsJson is Map<String, dynamic>
           ? countsJson['reviews'] as int? ?? 0
           : 0,
-      imageUrl: resolvedImage,
+      image: resolvedImage,
       proprietor: proprietorJson is Map<String, dynamic>
           ? PlaceProprietor.fromJson(proprietorJson)
           : null,
@@ -262,7 +395,7 @@ class PlaceSummary {
   final int productsCount;
   final int eventsCount;
   final int reviewsCount;
-  final String? imageUrl;
+  final String? image;
   final PlaceProprietor? proprietor;
   final int? ownerId;
 

@@ -93,7 +93,7 @@ class _SmallPlaceCard extends StatelessWidget {
           children: <Widget>[
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: _PlaceImage(imageUrl: place.imageUrl),
+              child: _PlaceImage(imageUrl: place.image),
             ),
             Expanded(
               child: Padding(
@@ -119,9 +119,10 @@ class _SmallPlaceCard extends StatelessWidget {
                       '${place.city}, ${place.country}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey[600]),
                     ),
                   ],
                 ),

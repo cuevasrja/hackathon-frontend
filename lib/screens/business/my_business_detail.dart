@@ -35,7 +35,7 @@ class Review {
 
 // --- Pantalla de Detalle y Panel de Control de un Negocio Específico ---
 class BusinessDetailsScreen extends StatefulWidget {
-  final PlaceSummary place;
+  final Place place;
 
   const BusinessDetailsScreen({super.key, required this.place});
 
@@ -223,13 +223,13 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
             radius: 50,
             backgroundColor: kPrimaryColor.withOpacity(0.2),
             backgroundImage:
-                widget.place.imageUrl != null &&
-                    widget.place.imageUrl!.isNotEmpty
-                ? NetworkImage(widget.place.imageUrl!)
+                widget.place.image != null &&
+                    widget.place.image!.isNotEmpty
+                ? NetworkImage(widget.place.image!)
                 : null,
             child:
-                widget.place.imageUrl != null &&
-                    widget.place.imageUrl!.isNotEmpty
+                widget.place.image != null &&
+                    widget.place.image!.isNotEmpty
                 ? null
                 : const Icon(
                     Icons.store_mall_directory,

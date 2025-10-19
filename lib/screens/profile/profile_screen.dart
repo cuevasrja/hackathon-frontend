@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
+import 'dart:io';
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'package:hackathon_frontend/services/profile_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hackathon_frontend/screens/profile/change_password_screen.dart';
@@ -29,6 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int? _userId;
   late ProfileService _profileService;
   bool _isLoading = true;
+  bool _isUploading = false;
   String? _errorMessage;
 
   @override
@@ -36,6 +40,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _profileService = ProfileService();
     _loadProfile();
+  }
+
+  void _showImageSourceActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Elegir de la galería'),
+              onTap: () {
+                _pickImage(ImageSource.gallery);
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Tomar foto'),
+              onTap: () {
+                _pickImage(ImageSource.camera);
+                Navigator.of(context).pop();
+              },
+            ),
+            if (_profileImageUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Eliminar foto', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  _deleteImage();
+                  Navigator.of(context).pop();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+
+    if (pickedFile != null) {
+      setState(() {
+        _isUploading = true;
+      });
+
+      try {
+        final bytes = await pickedFile.readAsBytes();
+        final base64Image = base64Encode(bytes);
+        await _profileService.updateProfileImage(image: 'data:image/png;base64,$base64Image');
+        await _loadProfile();
+      } on ProfileException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        late String errorMsg;
+        if (e is ProfileException) {
+          errorMsg = e.message;
+        } else {
+          errorMsg = 'Error inesperado al subir la imagen.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        );
+      } finally {
+        if (!mounted) return;
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteImage() async {
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      await _profileService.updateProfileImage(image: '');
+      await _loadProfile();
+    } on ProfileException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al eliminar la imagen'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isUploading = false;
+      });
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -72,6 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userMembership = user.membership;
         _userCity = user.city;
         _userId = user.id;
+        _profileImageUrl = user.image ?? '';
         _isLoading = false;
       });
     } on ProfileException catch (e) {
@@ -118,11 +225,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         // --- 1. Foto de Perfil ---
                         GestureDetector(
-                          onTap: () {
-                            // TODO: Lógica para cambiar la foto de perfil
-                            print('Cambiar foto de perfil');
-                          },
+                          onTap: _showImageSourceActionSheet,
                           child: Stack(
+                            alignment: Alignment.center,
                             children: [
                               CircleAvatar(
                                 radius: 100,
@@ -138,19 +243,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       )
                                     : null,
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: kPrimaryColor,
-                                  child: Icon(
-                                    Icons.camera_alt,
-                                    size: 20,
-                                    color: Colors.white,
+                              if (_isUploading)
+                                Container(
+                                  width: 200,
+                                  height: 200,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              if (!_isUploading)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: kPrimaryColor,
+                                    child: Icon(
+                                      Icons.camera_alt,
+                                      size: 20,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -433,7 +553,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Sesión cerrada correctamente.'),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: kPrimaryColor,
       ),
     );
     // Navegar de vuelta al login y eliminar todas las rutas anteriores
