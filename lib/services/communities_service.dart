@@ -274,7 +274,10 @@ class CommunitiesService {
     throw CommunitiesException('Error inesperado (${response.statusCode})');
   }
 
-  Future<CommunityCreationResponse> createCommunity(String name) async {
+  Future<CommunityCreationResponse> createCommunity(
+    String name,
+    String description,
+  ) async {
     final baseUrl = _baseUrl.trim();
     if (baseUrl.isEmpty) {
       throw CommunitiesException('API_BASE_URL no está configurado');
@@ -297,7 +300,10 @@ class CommunitiesService {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode({'name': name.trim()}),
+            body: jsonEncode({
+              'name': name.trim(),
+              'description': description.trim(),
+            }),
           )
           .timeout(const Duration(seconds: 15));
     } on Exception {
@@ -681,17 +687,19 @@ class CommunityCreationResponse {
 }
 
 class CreatedCommunity {
-  CreatedCommunity({required this.id, required this.name});
+  CreatedCommunity({required this.id, required this.name, required this.description});
 
   factory CreatedCommunity.fromJson(Map<String, dynamic> json) {
     return CreatedCommunity(
       id: json['id'] as int,
       name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
     );
   }
 
   final int id;
   final String name;
+  final String description;
 }
 
 class CommunityDetail {

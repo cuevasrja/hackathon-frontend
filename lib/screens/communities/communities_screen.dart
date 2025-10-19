@@ -219,7 +219,7 @@ class _CommunitiesScreenState extends State<CommunitiesScreen> {
                     membersCount: 1,
                     eventsCount: 0,
                     requestsCount: 0,
-                    description: null,
+                    description: result.description,
                     imageUrl: null,
                     isPrivate: false,
                     createdById: userId,
