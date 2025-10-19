@@ -78,7 +78,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
 
     try {
       final response =
-          await _communitiesService.createCommunity(_nameController.text);
+          await _communitiesService.createCommunity(_nameController.text, _selectedCategoryId!);
       if (!mounted) {
         return;
       }

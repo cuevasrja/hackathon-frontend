@@ -75,6 +75,7 @@ class EventService {
     required DateTime timeBegin,
     DateTime? timeEnd,
     required int placeId,
+    int? categoryId, // Add this
     int? minAge,
     String? status,
     required String visibility,
@@ -129,6 +130,10 @@ class EventService {
       payload['externalUrl'] = externalUrl.trim();
     }
 
+    if (categoryId != null) {
+      payload['categoryId'] = categoryId;
+    }
+
     http.Response response;
     response = await http
         .post(
@@ -156,6 +161,9 @@ class EventService {
     }
 
     if (response.statusCode == 400 || response.statusCode == 422) {
+      print(decodedBody);
+      print("Response Body: ${response.body}");
+      print("Response Status: ${response.statusCode}");
       final message = decodedBody is Map<String, dynamic>
           ? decodedBody['message'] as String? ?? 'Datos inválidos'
           : 'Datos inválidos';

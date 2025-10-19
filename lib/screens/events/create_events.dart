@@ -194,6 +194,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         description: _descriptionController.text.trim(),
         timeBegin: _selectedDate!,
         placeId: _selectedPlaceId!,
+        categoryId: _selectedCategoryId, // Pass the selected category ID
+
         minAge: minAge,
         visibility: _isPrivate ? 'PRIVATE' : 'PUBLIC',
         communityId: _selectedCommunityId,
