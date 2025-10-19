@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -31,19 +32,21 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   bool _isLoading = false;
   final AIChatService _aiChatService = const AIChatService();
   String? _conversationId;
-  final RecorderController _recorderController = RecorderController();
+  late final RecorderController _recorderController;
   bool _isRecordingAudio = false;
   String? _currentRecordingPath;
 
   @override
   void initState() {
     super.initState();
-    _recorderController
-      ..androidEncoder = AndroidEncoder.aac
-      ..androidOutputFormat = AndroidOutputFormat.mpeg4
-      ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
-      ..sampleRate = 44100
-      ..bitRate = 128000;
+    if (!kIsWeb) {
+      _recorderController = RecorderController()
+        ..androidEncoder = AndroidEncoder.aac
+        ..androidOutputFormat = AndroidOutputFormat.mpeg4
+        ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+        ..sampleRate = 44100
+        ..bitRate = 128000;
+    }
     // Mensaje de bienvenida de la IA al abrir el chat
     _messages.add(
       ChatMessage(
@@ -58,7 +61,9 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
-    _recorderController.dispose();
+    if (!kIsWeb) {
+      _recorderController.dispose();
+    }
     super.dispose();
   }
 
@@ -127,6 +132,9 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   }
 
   Future<String> _createRecordingPath() async {
+    if (kIsWeb) {
+      throw UnsupportedError('Audio recording is not supported on the web.');
+    }
     final directory = await getTemporaryDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final separator = Platform.pathSeparator;
@@ -135,6 +143,9 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   }
 
   Future<bool> _ensureMicrophonePermission() async {
+    if (kIsWeb) {
+      return false;
+    }
     PermissionStatus status = await Permission.microphone.status;
     if (status.isPermanentlyDenied) {
       if (!mounted) {
@@ -192,6 +203,7 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
   }
 
   Future<void> _toggleAudioRecording() async {
+    if (kIsWeb) return;
     if (_isLoading) {
       return;
     }
@@ -278,6 +290,7 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
     String? fileName,
     bool resetConversation = false,
   }) async {
+    if (kIsWeb) return;
     if (_isLoading) {
       return;
     }
@@ -519,19 +532,20 @@ class _AIPlannerScreenState extends State<AIPlannerScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor:
-                  _isRecordingAudio ? Colors.redAccent : kPrimaryColor,
-              child: IconButton(
-                icon: Icon(
-                  _isRecordingAudio ? Icons.stop : Icons.mic,
-                  color: Colors.white,
+            if (!kIsWeb)
+              CircleAvatar(
+                backgroundColor:
+                    _isRecordingAudio ? Colors.redAccent : kPrimaryColor,
+                child: IconButton(
+                  icon: Icon(
+                    _isRecordingAudio ? Icons.stop : Icons.mic,
+                    color: Colors.white,
+                  ),
+                  onPressed:
+                      _isLoading ? null : () => _toggleAudioRecording(),
                 ),
-                onPressed:
-                    _isLoading ? null : () => _toggleAudioRecording(),
               ),
-            ),
-            const SizedBox(width: 8),
+            if (!kIsWeb) const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _textController,
